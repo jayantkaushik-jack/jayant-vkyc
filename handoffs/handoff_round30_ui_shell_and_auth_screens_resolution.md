@@ -5,6 +5,20 @@ foundations (fonts, tokens, shell) every later round sits on. Three real, live-v
 and fixed while working through the flow-integrity checklist — not just checked off, actually broke the
 app until fixed. Full detail below, organized to match the handoff's own §12 write-back list.
 
+**Addendum, same day:** after this round shipped, the user reported the strict email format+domain
+validation and the OTP button's 6-digit gate were blocking routine testing — both were specced exactly
+per the handoff and its reference script, so this was a deliberate deviation confirmed with the user
+rather than a bug fix. `EmailForm` no longer runs any format/domain check (Continue is disabled only
+while the field is empty); `OtpForm`'s "Verify and sign in" no longer requires a complete code (disabled
+only while a verification is already in flight). Both now match the pre-redesign build's total lack of
+validation. `verifyOtp()` itself never checked the code's value either way, so nothing that was actually
+being enforced got weaker — only the UI's own extra gate on top of it. Verified live: `ds@ds` now signs
+in cleanly with no error shown, and clicking "Verify and sign in" with all six OTP boxes empty completes
+the same "Verifying… → Verified. Opening your queue… → Home" sequence as a real code would. The
+`.field__error`/invalid-state CSS and markup this used to drive are left intact in
+`cf-design-system.css` and `LoginPage.tsx` — nothing was deleted, just no longer called — in case a
+later round wants real validation back.
+
 ## What was built, per screen
 
 **Foundations (§5):** the 9 self-hosted fonts and 2 logo PNGs copied into `apps/agent/public/fonts/` and
