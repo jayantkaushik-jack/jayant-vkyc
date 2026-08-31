@@ -1,0 +1,29 @@
+{
+  "name": "@vkyc/shared",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./components/*": "./src/components/*",
+    "./data": "./src/data/index.ts",
+    "./data/*": "./src/data/*",
+    "./lib/*": "./src/lib/*",
+    "./features/auth/*": "./src/features/auth/*",
+    "./features/session/*": "./src/features/session/*",
+    "./assets/*": "./src/assets/*"
+  },
+  "dependencies": {
+    "@dicebear/collection": "^9.2.2",
+    "@dicebear/core": "^9.2.2",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "recharts": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "typescript": "~5.6.2"
+  }
+}

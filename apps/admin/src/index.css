@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 14px;
+  }
+
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .grid-paper {
+    background-color: #F8F7FC;
+    background-image:
+      linear-gradient(to right, rgba(235, 232, 242, 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(235, 232, 242, 0.5) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .breathing-ring {
+    animation: breathe 3s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 1;
+    }
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.95);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.4;
+    }
+    100% {
+      transform: scale(0.95);
+      opacity: 0.8;
+    }
+  }
+
+  .wait-breathe-ring {
+    animation: wait-breathe 8s ease-in-out infinite;
+  }
+
+  @keyframes wait-breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.65;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+  }
+
+  .breath-label-in {
+    animation: breath-label-in 8s ease-in-out infinite;
+  }
+
+  .breath-label-out {
+    animation: breath-label-out 8s ease-in-out infinite;
+  }
+
+  @keyframes breath-label-in {
+    0%, 45% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @keyframes breath-label-out {
+    0%, 45% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+  }
+}

@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * 16px root, not the 14px this app used to set. Cashmere's components size their
+   * own padding/gap in absolute px (--sds-spacing-4 … -96, a 4px scale). Tailwind's
+   * utilities are rem-based, so at a 14px root every `p-4`/`gap-4` in this app
+   * rendered 14px against cashmere's 16px — a 0.875x drift that made it impossible
+   * to line anything up with a DS component. At 16px the two scales are 1:1
+   * (`p-4` = 16px = --sds-spacing-16, `text-sm` = 14px = --sds-size-14).
+   */
+  html {
+    font-size: 16px;
+  }
+
+  /*
+   * `html body`, not `body`: cashmere's globals.css also sets `body { background }`
+   * to --sds-neutral-bg-default-default (#fffffc) and, because Vite evaluates the
+   * package's stylesheet when the GlobalStyle module loads, it can land after this
+   * file. Equal specificity then makes the winner load-order dependent. One extra
+   * element in the selector makes the canvas deterministic — without it the page
+   * background matches the card surface and cards lose all figure/ground
+   * separation.
+   */
+  html body {
+    @apply bg-bg text-text font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  /* Cashmere neutrals: --sds-neutral-bg-default-subtle canvas, --sds-neutral-border-light grid */
+  .grid-paper {
+    background-color: #f2f2f2;
+    background-image:
+      linear-gradient(to right, rgba(232, 232, 232, 0.8) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(232, 232, 232, 0.8) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .breathing-ring {
+    animation: breathe 3s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 1;
+    }
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.95);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.4;
+    }
+    100% {
+      transform: scale(0.95);
+      opacity: 0.8;
+    }
+  }
+
+  .wait-breathe-ring {
+    animation: wait-breathe 8s ease-in-out infinite;
+  }
+
+  @keyframes wait-breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.65;
+    }
+    50% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+  }
+
+  .breath-label-in {
+    animation: breath-label-in 8s ease-in-out infinite;
+  }
+
+  .breath-label-out {
+    animation: breath-label-out 8s ease-in-out infinite;
+  }
+
+  @keyframes breath-label-in {
+    0%, 45% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @keyframes breath-label-out {
+    0%, 45% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+  }
+}

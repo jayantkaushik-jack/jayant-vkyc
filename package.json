@@ -1,0 +1,37 @@
+{
+  "name": "cashfree-vkyc-demo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:agent": "npm run dev -w @vkyc/agent",
+    "dev:admin": "npm run dev -w @vkyc/admin",
+    "dev:auditor": "npm run dev -w @vkyc/auditor",
+    "dev:partner": "npm run dev -w @vkyc/partner",
+    "dev:customer": "npm run dev -w @vkyc/customer",
+    "build:agent": "npm run build -w @vkyc/agent",
+    "build:admin": "npm run build -w @vkyc/admin",
+    "build:auditor": "npm run build -w @vkyc/auditor",
+    "build:partner": "npm run build -w @vkyc/partner",
+    "build:customer": "npm run build -w @vkyc/customer",
+    "preview:agent": "npm run preview -w @vkyc/agent",
+    "preview:admin": "npm run preview -w @vkyc/admin",
+    "preview:auditor": "npm run preview -w @vkyc/auditor",
+    "preview:partner": "npm run preview -w @vkyc/partner",
+    "preview:customer": "npm run preview -w @vkyc/customer"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5"
+  }
+}

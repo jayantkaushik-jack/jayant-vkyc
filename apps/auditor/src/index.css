@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 14px;
+  }
+
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .grid-paper {
+    background-color: #F8F7FC;
+    background-image:
+      linear-gradient(to right, rgba(235, 232, 242, 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(235, 232, 242, 0.5) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
