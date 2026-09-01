@@ -1,4 +1,4 @@
-import { issueSttToken } from './_stt-token-core';
+import { issueSttToken } from './_stt-token-core.js';
 
 /**
  * Vercel serverless function (Node runtime). Local dev never hits this file

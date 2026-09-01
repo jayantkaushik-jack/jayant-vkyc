@@ -1,4 +1,4 @@
-import { extractAcreageAcres } from './_classify-core';
+import { extractAcreageAcres } from './_classify-core.js';
 
 /**
  * Vercel serverless function (Node runtime). Local dev never hits this file
