@@ -1,0 +1,1502 @@
+/* Ported from the round-30 handoff bundle's cf-design-system.css, with two
+   deliberate adjustments from the reference's exact text, both flagged inline
+   below at the point they apply (search AGENT-PORT-NOTE):
+
+   1. Font/asset URLs made absolute (/fonts/..., /assets/...) for Vite's public/ dir.
+
+   2. Three bare global selectors — `body { background/color/font/... }`, `a { color }`,
+      and a blanket `:focus-visible { ... }` — are NOT ported as bare selectors. First
+      tried wrapping this whole file in `@layer base` to integrate with Tailwind's own
+      cascade layers (unlayered CSS always beats layered CSS regardless of specificity,
+      per the CSS Cascade Layers spec — confirmed these three rules would otherwise
+      silently override every Tailwind-utility-styled element in the rest of the app,
+      not just this round's 3 screens). That approach doesn't build: Tailwind's own
+      PostCSS plugin requires `@tailwind base;` in the SAME file as any `@layer base {}`
+      block, which this file correctly doesn't have (only index.css does). Fixed instead
+      by scoping each of the three rules to `.auth`/`.shell` (this round's two actual
+      screen roots) or to the one specific component class that needs it, rather than
+      leaving them global — every other class below (`.btn`, `.field`, `.shell`, etc.)
+      is untouched and applies exactly as the reference wrote it, since none of those
+      class names existed anywhere in the app before this round (checked before porting).
+*/
+/* ============================================================================
+   MULE SENTINEL — CASHFREE CONSOLE DESIGN SYSTEM
+   Shared stylesheet. Every screen in the journey links this file.
+   Round 30. Do not fork per screen — extend here so every screen inherits.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   0. FONTS — self-hosted, deliberately.
+   Conference wifi must not be able to reskin the demo, and a CDN failure at a
+   booth is indistinguishable from a broken build. DM Sans + DM Mono are the
+   brand faces; Noto Sans Devanagari carries the Hindi line on the farmer tree
+   (DM Sans has no Devanagari coverage, so without this the bilingual questions
+   fall back to whatever the OS supplies and the two lines stop matching).
+   ------------------------------------------------------------------------ */
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 400;
+  src: url("/fonts/dm-sans-latin-400-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DM Sans"; font-style: italic; font-weight: 400;
+  src: url("/fonts/dm-sans-latin-400-italic.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 500;
+  src: url("/fonts/dm-sans-latin-500-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 600;
+  src: url("/fonts/dm-sans-latin-600-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 700;
+  src: url("/fonts/dm-sans-latin-700-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DM Mono"; font-style: normal; font-weight: 400;
+  src: url("/fonts/dm-mono-latin-400-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "DM Mono"; font-style: normal; font-weight: 500;
+  src: url("/fonts/dm-mono-latin-500-normal.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Noto Sans Devanagari"; font-style: normal; font-weight: 400;
+  src: url("/fonts/noto-sans-devanagari-devanagari-400-normal.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+A830-A839, U+200C-200D; font-display: swap; }
+@font-face { font-family: "Noto Sans Devanagari"; font-style: normal; font-weight: 500;
+  src: url("/fonts/noto-sans-devanagari-devanagari-500-normal.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+A830-A839, U+200C-200D; font-display: swap; }
+
+/* ---------------------------------------------------------------------------
+   1. TOKENS
+   ------------------------------------------------------------------------ */
+:root {
+  /* ---- BRAND: Cashfree 2026 "liquid glass" (Thunderclap). LOCKED DEFAULT. --
+     --cf-brand* are role names, not colour names, so a future palette change
+     is one block and not a find-and-replace across seventeen screens.       */
+  --cf-brand:         #00AD6C;  /* Evergreen — primary action, focus      */
+  --cf-brand-hover:   #009660;
+  --cf-brand-press:   #007F51;
+  --cf-brand-deep:    #004325;  /* Pine Grove                             */
+  --cf-brand-soft:    #CEF993;  /* Fresh Mint — accent word               */
+  --cf-brand-050:     #EAFBF2;
+  --cf-brand-100:     #C9F0DC;
+  --cf-gold:          #FFAE15;  /* Golden Hour                            */
+  --cf-oat:           #FCE2B0;  /* Oat Milk                               */
+  --cf-sky:           #9FEAF9;  /* Morning Sky                            */
+
+  /* Legacy aliases — every component still reads these, so both palettes
+     compile without touching component CSS. */
+  --cf-purple:        var(--cf-brand);
+  --cf-purple-hover:  var(--cf-brand-hover);
+  --cf-purple-press:  var(--cf-brand-press);
+  --cf-navy:          var(--cf-brand-deep);
+  --cf-mid:           var(--cf-brand);
+  --cf-lavender:      var(--cf-brand-soft);
+  --cf-purple-050:    var(--cf-brand-050);
+  --cf-purple-100:    var(--cf-brand-100);
+
+  /* Neutrals — graphite is the only neutral in this direction. */
+  --n-0:   #FFFFFF;
+  --n-25:  #FBFAF6;
+  --n-50:  #F6F4EE;
+  --n-100: #EFEDE5;
+  --n-200: #E2DFD4;
+  --n-300: #C7C3B5;
+  --n-400: #9A968A;
+  --n-500: #6B685F;
+  --n-600: #4A4842;
+  --n-800: #2A302C;
+  --n-900: #1D221F;           /* Graphite */
+
+    /* Risk / verdict semantics.
+     DELIBERATELY NOT THEMED. These four colours carry PROCEED / STEP-UP /
+     BLOCK / REFERRED and must mean the same thing in every theme. This is why
+     the liquid-glass atmosphere is confined to brand-forward surfaces: an
+     ambient green-to-gold wash behind a green "PROCEED" chip and an amber
+     "STEP-UP" chip destroys the one distinction the console exists to make. */
+  --ok-fg:   #0E7C5A;  --ok-bg:   #E6F5EF;  --ok-br:   #A7DCC7;
+  --wa-fg:   #A15C00;  --wa-bg:   #FDF1DF;  --wa-br:   #F0CE94;
+  --da-fg:   #B3261E;  --da-bg:   #FCE9E7;  --da-br:   #F2B8B4;
+  --re-fg:   #4E4860;  --re-bg:   #ECE9F6;  --re-br:   #C4BDD9;
+  --na-fg:   #9A93AE;
+
+  /* Presentation scale — 1 for working density, 1.15 for a stage projector.
+     Set data-presentation="true" on <html> to scale the whole console. */
+  --ui-scale: 1;
+
+  /* Spacing — 4px base, 8px rhythm. Nothing off this ramp. */
+  --s-1: calc(4px  * var(--ui-scale));
+  --s-2: calc(8px  * var(--ui-scale));
+  --s-3: calc(12px * var(--ui-scale));
+  --s-4: calc(16px * var(--ui-scale));
+  --s-6: calc(24px * var(--ui-scale));
+  --s-8: calc(32px * var(--ui-scale));
+  --s-12: calc(48px * var(--ui-scale));
+  --s-16: calc(64px * var(--ui-scale));
+
+  /* Radius */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-full: 999px;
+
+  /* Elevation — tinted with the brand's neutral so shadows belong to it */
+  --e-1: 0 1px 2px rgba(29,34,31,.06), 0 1px 3px rgba(29,34,31,.04);
+  --e-2: 0 4px 12px rgba(29,34,31,.08), 0 2px 4px rgba(29,34,31,.04);
+  --e-3: 0 16px 40px rgba(29,34,31,.16);
+
+  /* Focus — one ring, every interactive element, no exceptions */
+  --focus-ring: 0 0 0 3px rgba(0,173,108,.30);
+
+  /* Motion */
+  --t-micro: 120ms cubic-bezier(.2,0,0,1);
+  --t-enter: 200ms cubic-bezier(.2,0,0,1);
+  --t-exit:  150ms cubic-bezier(.4,0,1,1);
+
+  /* Type — driven by --ui-scale */
+  --f-sans: "DM Sans", "Noto Sans Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---------------------------------------------------------------------------
+   1b. ALTERNATE THEME — the older Cashfree purple system.
+   Kept working, not deleted: set data-brand="purple" on <html> to repaint the
+   whole console. Only the brand ramp and neutrals move; the risk/verdict
+   semantics are deliberately NOT themed — see the note in §6.
+   ------------------------------------------------------------------------ */
+[data-brand="purple"] {
+  --cf-brand:       #6200FF;
+  --cf-brand-hover: #5200D6;
+  --cf-brand-press: #4400B0;
+  --cf-brand-deep:  #200964;
+  --cf-brand-soft:  #A065FE;
+  --cf-brand-050:   #F2ECFF;
+  --cf-brand-100:   #E4D8FF;
+
+  --n-25:  #F9F8FF;
+  --n-50:  #F4F2FB;
+  --n-100: #ECE9F6;
+  --n-200: #DED9EE;
+  --n-300: #C4BDD9;
+  --n-400: #9A93AE;
+  --n-500: #6F6885;
+  --n-600: #4E4860;
+  --n-800: #24202E;
+  --n-900: #1B1B1B;
+
+  --focus-ring: 0 0 0 3px rgba(98,0,255,.28);
+  --e-1: 0 1px 2px rgba(32,9,100,.06), 0 1px 3px rgba(32,9,100,.04);
+  --e-2: 0 4px 12px rgba(32,9,100,.08), 0 2px 4px rgba(32,9,100,.04);
+  --e-3: 0 16px 40px rgba(32,9,100,.16);
+}
+
+/* ---------------------------------------------------------------------------
+   1c. ATMOSPHERE + GLASS
+   The liquid-glass layer. Used on brand-forward surfaces (auth, empty states,
+   overlays). Deliberately NOT used behind dense risk data — see §6 note.
+   ------------------------------------------------------------------------ */
+
+/* Atmospheric gradient that behaves like light, not a flat fill. */
+.atmos { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.atmos__blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(120px); opacity: .9;
+  will-change: transform;
+  animation: atmosDrift 26s ease-in-out infinite alternate;
+}
+.atmos__blob:nth-child(2) { animation-duration: 34s; animation-delay: -8s;  }
+.atmos__blob:nth-child(3) { animation-duration: 30s; animation-delay: -14s; }
+.atmos__blob:nth-child(4) { animation-duration: 38s; animation-delay: -20s; }
+
+@keyframes atmosDrift {
+  from { transform: translate3d(0,0,0) scale(1); }
+  to   { transform: translate3d(4%, -5%, 0) scale(1.12); }
+}
+
+/* Blueprint layer — the "engineered / guarded" signal. */
+.blueprint { position: absolute; inset: 0; pointer-events: none; opacity: .5; }
+/* A dot lattice, not a mesh — reads as a coordinate system at a glance and
+   disappears at arm's length, which is the point. */
+.blueprint__grid {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(currentColor .9px, transparent 1.1px);
+  background-size: 38px 38px;
+  opacity: .17;
+}
+.blueprint__bracket {
+  position: absolute; width: 26px; height: 26px;
+  border: 1px solid currentColor; opacity: .32;
+}
+.blueprint__bracket--tl { top: 22px;    left: 22px;  border-right: 0; border-bottom: 0; }
+.blueprint__bracket--tr { top: 22px;    right: 22px; border-left: 0;  border-bottom: 0; }
+.blueprint__bracket--bl { bottom: 22px; left: 22px;  border-right: 0; border-top: 0; }
+.blueprint__bracket--br { bottom: 22px; right: 22px; border-left: 0;  border-top: 0; }
+.blueprint__tick {
+  position: absolute; width: 9px; height: 9px; opacity: .34;
+  background:
+    linear-gradient(currentColor,currentColor) center/1px 100% no-repeat,
+    linear-gradient(currentColor,currentColor) center/100% 1px no-repeat;
+}
+
+/* Frosted glass surface. */
+.glass {
+  background: rgba(255,255,255,.62);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(28px) saturate(150%);
+  border: 1px solid rgba(255,255,255,.75);
+  box-shadow:
+    0 20px 60px rgba(29,34,31,.14),
+    inset 0 1px 0 rgba(255,255,255,.85);
+}
+[data-brand="purple"] .glass {
+  box-shadow: 0 20px 60px rgba(32,9,100,.16), inset 0 1px 0 rgba(255,255,255,.85);
+}
+.glass--onDark {
+  background: rgba(255,255,255,.11);
+  border-color: rgba(255,255,255,.22);
+  box-shadow: 0 16px 44px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.28);
+  color: var(--n-0);
+}
+
+/* Hero glass object + its orbiting spheres. */
+.glass-object { position: relative; animation: floatY 9s ease-in-out infinite alternate; will-change: transform; }
+.orb {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.9), rgba(255,255,255,.18) 42%, rgba(255,255,255,.05) 70%);
+  border: 1px solid rgba(255,255,255,.34);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  animation: floatY 7s ease-in-out infinite alternate;
+}
+@keyframes floatY { from { transform: translateY(-8px); } to { transform: translateY(10px); } }
+
+/* ---------------------------------------------------------------------------
+   1d. MOTION UTILITIES
+   Entrance = one staggered rise. Nothing loops in the working surfaces except
+   genuine status (listening, thinking, waiting).
+   ------------------------------------------------------------------------ */
+.anim-rise { opacity: 0; animation: rise 620ms cubic-bezier(.2,.7,.2,1) forwards; }
+.d-1 { animation-delay:  60ms; } .d-2 { animation-delay: 140ms; }
+.d-3 { animation-delay: 220ms; } .d-4 { animation-delay: 300ms; }
+.d-5 { animation-delay: 380ms; } .d-6 { animation-delay: 460ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.anim-fade { opacity: 0; animation: fadeIn 800ms ease forwards; }
+@keyframes fadeIn { to { opacity: 1; } }
+
+/* Sheen that crosses a primary button on hover — one pass, no loop. */
+.btn--sheen { position: relative; overflow: hidden; }
+.btn--sheen::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 44%;
+  left: -60%; transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.34), transparent);
+  transition: left 620ms cubic-bezier(.2,.7,.2,1);
+}
+.btn--sheen:hover::after { left: 120%; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   2. RESET + BASE
+   ------------------------------------------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+/* Any component with an explicit `display` would otherwise beat the UA's
+   [hidden] rule and stay on screen. Make the attribute authoritative. This one
+   IS deliberately global — flagged as such in the flow-integrity checklist
+   this round shipped with (handoff §9 item 1), not an oversight. */
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+/* AGENT-PORT-NOTE: reference had `body { margin/background/color/font/... }`
+   here, bare. Scoped to `.auth`/`.shell` instead (this round's two screen
+   roots) — see this file's header comment for why. `apps/agent/src/index.css`
+   already owns the real global body background/text/font (`html body { @apply
+   bg-bg text-text font-sans antialiased }`), which every not-yet-redesigned
+   screen still reads. */
+.auth, .shell {
+  color: var(--n-900);
+  font-family: var(--f-sans);
+  font-size: calc(15px * var(--ui-scale));
+  line-height: 1.47;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+/* AGENT-PORT-NOTE: reference had a bare `a { color: var(--cf-purple) }` here.
+   This round's only real anchor ("Contact IT support") is styled directly at
+   its call site instead — not worth a scoped rule for one element. */
+
+/* AGENT-PORT-NOTE: reference had a blanket `:focus-visible { outline:none;
+   box-shadow: var(--focus-ring); border-radius: var(--r-sm) }` here. Most
+   component classes below already carry their own scoped focus treatment
+   (.btn:focus-visible, .field__input:focus, .otp input:focus, ...) — the
+   remainder (.link-btn, .nav-item, .status-btn, .menu__item) get the same
+   three declarations added directly to their own rule further down instead
+   of relying on one universal selector, so this stays exactly as narrow as
+   the rest of this file already is everywhere else. */
+
+/* ---------------------------------------------------------------------------
+   3. TYPOGRAPHY SCALE
+   Use these classes; do not set ad-hoc font sizes on screens.
+   ------------------------------------------------------------------------ */
+.t-verdict  { font-size: calc(40px * var(--ui-scale)); line-height: 1.1;  font-weight: 700; letter-spacing: -.025em; }
+.t-score    { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+              font-size: calc(32px * var(--ui-scale)); line-height: 1.12; font-weight: 500; letter-spacing: -.02em; }
+.t-h1       { font-size: calc(26px * var(--ui-scale)); line-height: 1.23; font-weight: 600; letter-spacing: -.02em; }
+.t-h2       { font-size: calc(20px * var(--ui-scale)); line-height: 1.3;  font-weight: 600; letter-spacing: -.015em; }
+.t-question { font-size: calc(24px * var(--ui-scale)); line-height: 1.33; font-weight: 500; letter-spacing: -.01em; }
+.t-question-hi { font-size: calc(20px * var(--ui-scale)); line-height: 1.5; font-weight: 400; color: var(--n-500); }
+.t-body-lg  { font-size: calc(16px * var(--ui-scale)); line-height: 1.5; }
+.t-body     { font-size: calc(15px * var(--ui-scale)); line-height: 1.47; }
+.t-body-str { font-size: calc(15px * var(--ui-scale)); line-height: 1.47; font-weight: 500; }
+.t-small    { font-size: calc(13px * var(--ui-scale)); line-height: 1.38; }
+.t-mono     { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+              font-size: calc(13px * var(--ui-scale)); line-height: 1.38; }
+.t-eyebrow  { font-family: var(--f-mono); font-size: calc(11px * var(--ui-scale)); line-height: 1.45;
+              font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+
+.c-muted  { color: var(--n-500); }
+.c-faint  { color: var(--n-400); }
+.c-head   { color: var(--n-800); }
+.c-brand  { color: var(--cf-purple); }
+.c-ok     { color: var(--ok-fg); }
+.c-wa     { color: var(--wa-fg); }
+.c-da     { color: var(--da-fg); }
+
+/* Headings inside screens default to the scale */
+h1 { margin: 0; } h2 { margin: 0; } h3 { margin: 0; } p { margin: 0; }
+
+/* ---------------------------------------------------------------------------
+   4. BUTTON
+   Every variant carries default / hover / active / focus / disabled.
+   ------------------------------------------------------------------------ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  height: calc(36px * var(--ui-scale)); padding: 0 var(--s-4);
+  border-radius: var(--r-sm); border: 1px solid transparent;
+  font-size: calc(14px * var(--ui-scale)); font-weight: 500; letter-spacing: -.005em;
+  white-space: nowrap; cursor: pointer; text-decoration: none;
+  transition: background var(--t-micro), border-color var(--t-micro), color var(--t-micro), box-shadow var(--t-micro);
+}
+.btn:focus-visible { box-shadow: var(--focus-ring); }
+.btn--lg { height: calc(44px * var(--ui-scale)); padding: 0 var(--s-6); font-size: calc(15px * var(--ui-scale)); }
+.btn--sm { height: calc(30px * var(--ui-scale)); padding: 0 var(--s-3); font-size: calc(13px * var(--ui-scale)); }
+.btn--block { width: 100%; }
+
+.btn--primary   { background: var(--cf-purple); color: var(--n-0); }
+.btn--primary:hover  { background: var(--cf-purple-hover); }
+.btn--primary:active { background: var(--cf-purple-press); }
+
+.btn--secondary { background: var(--n-0); color: var(--n-800); border-color: var(--n-300); }
+.btn--secondary:hover  { background: var(--n-50); border-color: var(--n-400); }
+.btn--secondary:active { background: var(--n-100); }
+
+.btn--tertiary  { background: transparent; color: var(--n-600); }
+.btn--tertiary:hover  { background: var(--n-100); color: var(--n-800); }
+
+.btn--danger    { background: var(--da-fg); color: var(--n-0); }
+.btn--danger:hover { background: #99201A; }
+
+.btn--danger-quiet { background: transparent; color: var(--da-fg); }
+.btn--danger-quiet:hover { background: var(--da-bg); }
+
+.btn[disabled], .btn.is-disabled {
+  background: var(--n-100); color: var(--n-400); border-color: var(--n-200);
+  cursor: not-allowed; pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   5. FIELD
+   ------------------------------------------------------------------------ */
+.field { display: flex; flex-direction: column; gap: var(--s-2); }
+.field__label {
+  font-size: calc(13px * var(--ui-scale)); font-weight: 500; color: var(--n-800);
+}
+.field__input {
+  height: calc(44px * var(--ui-scale)); padding: 0 var(--s-3);
+  border: 1px solid var(--n-300); border-radius: var(--r-sm);
+  background: var(--n-0); color: var(--n-900);
+  font-size: calc(15px * var(--ui-scale));
+  transition: border-color var(--t-micro), box-shadow var(--t-micro);
+  width: 100%;
+}
+.field__input::placeholder { color: var(--n-400); }
+.field__input:hover { border-color: var(--n-400); }
+.field__input:focus { outline: none; border-color: var(--cf-purple); box-shadow: var(--focus-ring); }
+.field__input[aria-invalid="true"] { border-color: var(--da-fg); }
+.field__input[aria-invalid="true"]:focus { box-shadow: 0 0 0 3px rgba(179,38,30,.22); }
+.field__help  { font-size: calc(13px * var(--ui-scale)); color: var(--n-500); }
+.field__error {
+  display: none; align-items: flex-start; gap: var(--s-2);
+  font-size: calc(13px * var(--ui-scale)); color: var(--da-fg);
+}
+.field.is-invalid .field__error { display: flex; }
+.field.is-invalid .field__help  { display: none; }
+
+/* OTP segments — six discrete boxes, so the code's length is visible before
+   the agent starts typing. The single wide input in the original build made
+   "how many digits?" a guess. */
+.otp { display: flex; gap: var(--s-2); }
+.otp input {
+  width: calc(52px * var(--ui-scale)); height: calc(60px * var(--ui-scale));
+  text-align: center; border: 1px solid var(--n-300); border-radius: var(--r-sm);
+  background: rgba(255,255,255,.86); color: var(--n-900);
+  font-family: var(--f-mono); font-size: calc(24px * var(--ui-scale));
+  font-variant-numeric: tabular-nums; caret-color: var(--cf-purple);
+  transition: border-color var(--t-micro), box-shadow var(--t-micro),
+              background var(--t-micro), transform var(--t-micro);
+}
+.otp input::placeholder { color: var(--n-300); }
+.otp input:hover { border-color: var(--n-400); }
+.otp input:focus { outline: none; border-color: var(--cf-purple); box-shadow: var(--focus-ring); }
+.otp input.is-filled { border-color: var(--cf-purple); background: var(--n-0); }
+.otp.is-invalid input { border-color: var(--da-fg); background: var(--da-bg); }
+.otp.is-invalid { animation: shake 340ms cubic-bezier(.36,.07,.19,.97); }
+.otp.is-verifying input { border-color: var(--cf-purple-100); color: var(--n-400); }
+@keyframes shake {
+  10%,90% { transform: translateX(-2px); } 20%,80% { transform: translateX(4px); }
+  30%,50%,70% { transform: translateX(-7px); } 40%,60% { transform: translateX(7px); }
+}
+
+/* Inline spinner for genuine waits (OTP verify, classifier round-trip). */
+.spinner {
+  width: 15px; height: 15px; flex: none; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin 720ms linear infinite; opacity: .9;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Quiet link-button used for Back / Resend / Change. */
+.link-btn {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--cf-purple); font-size: calc(13px * var(--ui-scale)); font-weight: 500;
+}
+.link-btn:hover { text-decoration: underline; }
+.link-btn[disabled] { color: var(--n-400); cursor: default; text-decoration: none; }
+/* AGENT-PORT-NOTE: see §2's note on the dropped blanket :focus-visible rule. */
+.link-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+
+/* ---------------------------------------------------------------------------
+   6. CHIPS / BANDS / DIMENSIONS
+   Colour is NEVER the only carrier — every chip has a text label.
+   ------------------------------------------------------------------------ */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  height: calc(22px * var(--ui-scale)); padding: 0 var(--s-2);
+  border-radius: var(--r-full); border: 1px solid;
+  font-size: calc(11px * var(--ui-scale)); font-weight: 600; letter-spacing: .02em;
+}
+.chip--ok  { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-br); }
+.chip--wa  { background: var(--wa-bg); color: var(--wa-fg); border-color: var(--wa-br); }
+.chip--da  { background: var(--da-bg); color: var(--da-fg); border-color: var(--da-br); }
+.chip--re  { background: var(--re-bg); color: var(--re-fg); border-color: var(--re-br); }
+.chip--neutral { background: var(--n-50); color: var(--n-600); border-color: var(--n-200); font-weight: 500; }
+.chip--brand   { background: var(--cf-purple-050); color: var(--cf-purple); border-color: var(--cf-purple-100); }
+.chip--mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-weight: 500; }
+
+.dim-dot { width: 12px; height: 12px; border-radius: var(--r-full); display: inline-block; flex: none; }
+.dim-dot--low  { background: var(--ok-fg); }
+.dim-dot--med  { background: #D08700; }
+.dim-dot--high { background: var(--da-fg); }
+.dim-dot--na   { background: transparent; border: 2px solid var(--n-300); }
+
+/* Rule-source tag: BANK (bank's own CDD rule) vs MS-### (Mule Sentinel native) */
+.src-tag {
+  display: inline-block; font-family: var(--f-mono);
+  font-size: calc(9.5px * var(--ui-scale)); letter-spacing: .04em;
+  padding: 1px 5px; border-radius: 4px; border: 1px solid var(--n-300);
+  color: var(--n-500); vertical-align: 1px; white-space: nowrap;
+}
+.src-tag--ms { border-color: var(--cf-purple-100); color: var(--cf-purple); background: var(--cf-purple-050); }
+
+/* ---------------------------------------------------------------------------
+   7. SURFACES
+   ------------------------------------------------------------------------ */
+.card {
+  background: var(--n-0); border: 1px solid var(--n-200);
+  border-radius: var(--r-md); box-shadow: var(--e-1);
+}
+.card--pad  { padding: var(--s-4); }
+.card--tint { background: var(--cf-purple-050); border-color: var(--cf-purple-100); box-shadow: none; }
+.card--warn { background: var(--wa-bg); border-color: var(--wa-br); box-shadow: none; }
+.card--flat { box-shadow: none; }
+
+.divider { height: 1px; background: var(--n-100); border: 0; margin: var(--s-4) 0; }
+
+/* ---------------------------------------------------------------------------
+   8. AUTH LAYOUT — shared by Login and OTP so the two screens are one place
+   ------------------------------------------------------------------------ */
+.auth { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+
+/* Atmosphere colours per theme. Purple = deep panel, white type.
+   Thunderclap = light panel, graphite type. */
+:root {
+  --auth-base: #F4F7E9;
+  --blob-1: #CEF993; --blob-2: #00AD6C; --blob-3: #FCE2B0; --blob-4: #FFAE15;
+}
+[data-brand="purple"] {
+  --auth-base: #35009B;
+  --blob-1: #A065FE; --blob-2: #6200FF; --blob-3: #4400B0; --blob-4: #C79BFF;
+}
+
+.auth__brand {
+  position: relative; overflow: hidden;
+  background: var(--auth-base); color: var(--n-900);
+  display: flex; flex-direction: column;
+  padding: var(--s-8);
+}
+[data-brand="purple"] .auth__brand { color: var(--n-0); }
+
+.auth__brand .blueprint { color: var(--n-900); }
+[data-brand="purple"] .auth__brand .blueprint { color: var(--n-0); }
+
+.auth__logo { position: relative; z-index: 2; }
+.auth__copy { position: relative; z-index: 2; margin-top: auto; margin-bottom: auto; max-width: 30ch; }
+.auth__eyebrow { color: currentColor; opacity: .66; margin-bottom: var(--s-3); }
+.auth__name {
+  font-size: calc(52px * var(--ui-scale)); line-height: 1.04; font-weight: 700;
+  letter-spacing: -.03em; margin-bottom: var(--s-4);
+}
+.auth__name em { font-style: normal; color: var(--cf-brand); }
+[data-brand="purple"] .auth__name em { color: var(--cf-brand-soft); }
+/* Supporting text never full width — brand rule, adapted */
+.auth__support { font-size: calc(17px * var(--ui-scale)); line-height: 1.5; color: currentColor; opacity: .74; max-width: 24ch; }
+.auth__foot { position: relative; z-index: 2; color: currentColor; opacity: .5; }
+
+/* The hero glass object sits behind the copy, lower-right of the panel. */
+.auth__hero {
+  position: absolute; right: 2%; bottom: 5%; width: 56%; max-width: 430px;
+  z-index: 1; pointer-events: none;
+}
+
+.auth__panel {
+  background: var(--n-25);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: var(--s-8); position: relative; overflow: hidden;
+}
+.auth__panel > * { position: relative; z-index: 2; }
+.auth__card {
+  width: 100%; max-width: calc(420px * var(--ui-scale));
+  border-radius: var(--r-lg);
+  padding: var(--s-8) var(--s-6) var(--s-6);
+}
+/* Solid variant, kept for surfaces where legibility beats atmosphere. */
+.auth__card--solid { background: var(--n-0); border: 1px solid var(--n-200); box-shadow: var(--e-1); }
+.auth__card-head { margin-bottom: var(--s-6); }
+.auth__card-head h1 { margin-bottom: var(--s-1); }
+.auth__meta {
+  position: absolute; bottom: var(--s-6); left: 0; right: 0; text-align: center;
+  color: var(--n-400);
+}
+
+/* ---- LOGO ---------------------------------------------------------------
+   The real Cashfree Secure ID lockup, supplied by the brand team:
+     assets/cashfree-secure-id-white.png -> dark surfaces (sidebar, purple panel)
+     assets/cashfree-secure-id-dark.png  -> light surfaces (default brand panel)
+   Both were derived from the one supplied master by removing the background
+   and inverting only the wordmark ink — the shield keeps its green/gold
+   identity in both. The mark itself was never redrawn.
+   Sizing is by height; the lockup is ~4.2:1, so height drives the footprint.
+   Swap the .png for the vendor .svg when it lands — no markup change needed. */
+.brand-logo { height: calc(34px * var(--ui-scale)); width: auto; }
+.brand-logo--sm { height: calc(28px * var(--ui-scale)); }
+.brand-logo--lg { height: calc(46px * var(--ui-scale)); }
+.brand-logo[hidden] { display: none !important; }
+
+/* Typographic stand-in, shown only while the real asset is absent. */
+.wordmark { display: inline-flex; align-items: center; gap: 10px; }
+.wordmark__glyph {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--n-0); color: var(--cf-purple);
+  display: grid; place-items: center; font-weight: 700; font-size: 17px; flex: none;
+}
+.wordmark__text { font-size: calc(19px * var(--ui-scale)); font-weight: 600; letter-spacing: -.02em; }
+.wordmark--dark .wordmark__glyph { background: var(--cf-purple); color: var(--n-0); }
+.wordmark--dark .wordmark__text  { color: var(--n-900); }
+/* The brand panel is light in the default theme, so the mark reads dark-on-light.
+   In the purple theme the panel is dark and the mark inverts. */
+.auth__brand .wordmark__glyph { background: var(--cf-brand); color: var(--n-0); }
+[data-brand="purple"] .auth__brand .wordmark__glyph { background: var(--n-0); color: var(--cf-brand); }
+
+/* ---------------------------------------------------------------------------
+   9. APP SHELL — sidebar + top bar, present on EVERY authenticated screen.
+   The single biggest fix for "the screens feel disconnected".
+   ------------------------------------------------------------------------ */
+/* Viewport-height shell. Panels scroll inside it rather than the page
+   scrolling as a whole — which is what keeps action bars and video rails
+   fixed in place during a call. */
+.shell {
+  display: grid; grid-template-columns: calc(240px * var(--ui-scale)) minmax(0,1fr);
+  height: 100vh; overflow: hidden;
+}
+.shell > * { min-height: 0; }
+/* Call-room routes render no `AgentSidebar` (full-bleed video), but an
+   explicit 240px first track in grid-template-columns reserves that space
+   regardless of whether anything occupies it — `gridColumn: 2` on the
+   content column only controls which track it's placed IN, not how wide
+   the (now-empty) first track still renders. Confirmed live as a real,
+   persistent blank left rail on every call-room screen, not a one-off. */
+.shell--no-sidebar { grid-template-columns: minmax(0,1fr); }
+
+.sidebar { background: var(--n-900); padding: var(--s-4) var(--s-3); display: flex; flex-direction: column; gap: 2px; }
+.sidebar__brand { padding: var(--s-2) var(--s-2) var(--s-6); }
+.sidebar__brand .wordmark__text { color: var(--n-0); }
+.sidebar__product {
+  display: block; font-family: var(--f-mono); font-size: calc(10px * var(--ui-scale));
+  letter-spacing: .08em; text-transform: uppercase; color: var(--n-400); margin-top: 3px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-sm);
+  color: var(--n-300); font-size: calc(14px * var(--ui-scale)); text-decoration: none;
+  transition: background var(--t-micro), color var(--t-micro);
+}
+.nav-item:hover { background: rgba(255,255,255,.07); color: var(--n-0); }
+/* AGENT-PORT-NOTE: see §2's note on the dropped blanket :focus-visible rule. */
+.nav-item:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+.nav-item.is-active {
+  background: color-mix(in srgb, var(--cf-brand) 26%, transparent);
+  color: var(--n-0);
+  box-shadow: inset 2px 0 0 var(--cf-brand-soft);
+}
+
+.topbar {
+  height: calc(64px * var(--ui-scale)); background: var(--n-0);
+  border-bottom: 1px solid var(--n-200);
+  display: flex; align-items: center; gap: var(--s-4); padding: 0 var(--s-6);
+}
+.topbar__meters { display: flex; align-items: center; gap: var(--s-4); margin-left: auto; }
+.meter { text-align: right; line-height: 1.2; }
+.meter__label { display: block; font-family: var(--f-mono); font-size: calc(10px * var(--ui-scale));
+                letter-spacing: .07em; text-transform: uppercase; color: var(--n-400); }
+.meter__value { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+                font-size: calc(14px * var(--ui-scale)); font-weight: 500; }
+.topbar__rule { width: 1px; height: 26px; background: var(--n-200); }
+.avatar {
+  border-radius: var(--r-full); flex: none;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--cf-brand-soft) 88%, white),
+    color-mix(in srgb, var(--cf-oat) 92%, white));
+  border: 1px solid color-mix(in srgb, var(--cf-brand) 18%, transparent);
+  color: color-mix(in srgb, var(--cf-brand-deep) 78%, var(--n-600));
+  font-weight: 600; letter-spacing: -.01em; line-height: 1;
+}
+/* Initials scale with the avatar so one component covers every placement. */
+.avatar--sm { font-size: calc(11px * var(--ui-scale)); }
+.avatar--md { font-size: calc(16px * var(--ui-scale)); }
+.avatar--lg { font-size: calc(21px * var(--ui-scale)); }
+.avatar--sm { width: 30px; height: 30px; }
+.avatar--md { width: 48px; height: 48px; }
+.avatar--lg { width: 64px; height: 64px; }
+
+.status-btn {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  height: calc(36px * var(--ui-scale)); padding: 0 var(--s-3);
+  border: 1px solid var(--n-200); border-radius: var(--r-full);
+  background: var(--n-0); font-size: calc(14px * var(--ui-scale)); font-weight: 500; cursor: pointer;
+}
+.status-btn:hover { border-color: var(--n-300); background: var(--n-25); }
+/* AGENT-PORT-NOTE: see §2's note on the dropped blanket :focus-visible rule. */
+.status-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-full); }
+.status-dot { width: 8px; height: 8px; border-radius: var(--r-full); flex: none; }
+.status-dot--online  { background: var(--ok-fg); }
+.status-dot--break   { background: var(--wa-fg); }
+.status-dot--offline { background: var(--n-400); }
+
+.workspace { padding: var(--s-6); position: relative; overflow: hidden; }
+/* Lift real content above the ambient layers — but never restyle the ambient
+   layers themselves, or they get pulled into the layout flow. */
+.workspace > *:not(.atmos):not(.blueprint) { position: relative; z-index: 1; }
+
+.sidebar__foot { margin-top: auto; padding: var(--s-3); border-top: 1px solid rgba(255,255,255,.09); }
+
+/* Dropdown menu — status switcher, row actions, language pickers. */
+.menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+  min-width: 190px; padding: var(--s-1);
+  background: var(--n-0); border: 1px solid var(--n-200);
+  border-radius: var(--r-md); box-shadow: var(--e-3);
+  animation: rise 160ms cubic-bezier(.2,.7,.2,1) both;
+}
+.menu__item {
+  display: flex; align-items: center; gap: var(--s-3); width: 100%;
+  padding: var(--s-2) var(--s-3); border: 0; border-radius: var(--r-sm);
+  background: none; text-align: left; cursor: pointer;
+  font-size: calc(14px * var(--ui-scale));
+}
+.menu__item:hover { background: var(--n-50); }
+/* AGENT-PORT-NOTE: see §2's note on the dropped blanket :focus-visible rule. */
+.menu__item:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+.menu__item[aria-checked="true"] { background: var(--cf-brand-050); color: var(--cf-brand); font-weight: 500; }
+.menu__desc { display: block; font-size: calc(12px * var(--ui-scale)); color: var(--n-500); font-weight: 400; }
+.menu__sep { height: 1px; background: var(--n-100); margin: var(--s-1) 0; }
+
+/* Empty / waiting states. Never a blank canvas — always say what is true,
+   why, and what the one next action is. */
+.empty {
+  max-width: calc(520px * var(--ui-scale)); margin: 0 auto;
+  text-align: center; padding: var(--s-12) var(--s-8);
+  border-radius: var(--r-lg);
+}
+.empty__icon {
+  width: 76px; height: 76px; margin: 0 auto var(--s-6);
+  border-radius: var(--r-full); display: grid; place-items: center;
+  background: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.8);
+  color: var(--n-500);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 8px 24px rgba(29,34,31,.07);
+}
+.empty__title { margin-bottom: var(--s-2); }
+.empty__body  { color: var(--n-500); max-width: 42ch; margin: 0 auto var(--s-6); }
+
+/* Keyboard hint. */
+.kbd {
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  border: 1px solid var(--n-300); border-bottom-width: 2px;
+  background: var(--n-0); font-family: var(--f-mono);
+  font-size: calc(11px * var(--ui-scale)); color: var(--n-600);
+}
+
+/* ---------------------------------------------------------------------------
+   12. QUEUE — stat strip, funnel, table
+   ------------------------------------------------------------------------ */
+
+/* Today's funnel, promoted from a one-line label to the strip it deserves.
+   This is the product's whole argument in four numbers: most cases never
+   reach a human, and the agent only holds the ambiguous remainder. */
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-3); }
+.stat-tile {
+  position: relative; padding: var(--s-4);
+  background: rgba(255,255,255,.66);
+  -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255,255,255,.8); border-radius: var(--r-md);
+  box-shadow: var(--e-1); overflow: hidden;
+}
+.stat-tile__label {
+  display: flex; align-items: center; gap: var(--s-2);
+  font-family: var(--f-mono); font-size: calc(10.5px * var(--ui-scale));
+  letter-spacing: .07em; text-transform: uppercase; color: var(--n-500);
+  margin-bottom: var(--s-2);
+}
+.stat-tile__num {
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: calc(30px * var(--ui-scale)); line-height: 1; font-weight: 500;
+  letter-spacing: -.03em; color: var(--n-900);
+}
+.stat-tile__sub { margin-top: var(--s-2); font-size: calc(12.5px * var(--ui-scale)); color: var(--n-500); }
+/* Proportion bar — the tile's share of the day, read at a glance. */
+.stat-tile__bar { height: 3px; border-radius: 2px; background: var(--n-100); margin-top: var(--s-3); overflow: hidden; }
+.stat-tile__bar i { display: block; height: 100%; border-radius: 2px; }
+/* The agent's own tile is the only one that carries brand colour. */
+.stat-tile--you {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cf-oat) 55%, white), rgba(255,255,255,.7));
+  border-color: var(--wa-br);
+}
+.stat-tile--you .stat-tile__num { color: var(--wa-fg); }
+.stat-tile__arrow {
+  position: absolute; left: calc(-1 * var(--s-3) - 5px); top: 50%; transform: translateY(-50%);
+  color: var(--n-300);
+}
+
+/* Queue table. Sticky header, no zebra — rows are separated by rules and
+   distinguished by hover, which keeps colour free for risk meaning.
+   Round 37 (Bug 1) — the sticky `thead th` below only ever had an effect
+   once this wrapper is itself the bounded, scrolling ancestor; before this
+   round nothing bounded its height, so a long queue just grew the whole
+   page instead of scrolling in place, pushing the legend row right below
+   it (and, transitively, the incoming-call card further down the page)
+   out of view. `clamp()` instead of a flat `vh` or a fixed pixel value so
+   this stays reasonable on both a short laptop window and a tall monitor. */
+.qtable-wrap { border: 1px solid var(--n-200); border-radius: var(--r-md);
+               background: var(--n-0); box-shadow: var(--e-1);
+               max-height: clamp(240px, calc(100vh - 420px), 520px);
+               overflow-x: hidden; overflow-y: auto; }
+.qtable { width: 100%; border-collapse: collapse; }
+.qtable thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--n-50); border-bottom: 1px solid var(--n-200);
+  padding: var(--s-3) var(--s-4); text-align: left; white-space: nowrap;
+  font-family: var(--f-mono); font-size: calc(10.5px * var(--ui-scale));
+  letter-spacing: .07em; text-transform: uppercase; color: var(--n-500); font-weight: 500;
+}
+.qtable tbody td { padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--n-100); vertical-align: middle; }
+.qtable tbody tr:last-child td { border-bottom: 0; }
+.qtable tbody tr { cursor: pointer; transition: background var(--t-micro); }
+.qtable tbody tr:hover { background: var(--cf-brand-050); }
+.qtable tbody tr:focus-visible { outline: none; background: var(--cf-brand-050); box-shadow: inset 0 0 0 2px var(--cf-brand); }
+.qtable tbody tr.is-next { background: color-mix(in srgb, var(--cf-oat) 26%, white); }
+.qtable tbody tr.is-next:hover { background: color-mix(in srgb, var(--cf-oat) 38%, white); }
+.q-next-rail { box-shadow: inset 3px 0 0 var(--wa-fg); }
+
+.q-name { display: flex; align-items: center; gap: var(--s-3); }
+.q-score { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+           font-size: calc(15px * var(--ui-scale)); font-weight: 500; }
+
+/* Five risk dimensions, letters carried in the header so the legend sits with
+   the data instead of stranded at the bottom of the table. */
+.dim-head { display: flex; gap: 10px; }
+.dim-head span { width: 12px; text-align: center; }
+.dim-row  { display: flex; gap: 10px; align-items: center; }
+
+.rule-line { display: flex; align-items: center; gap: var(--s-2); line-height: 1.35; }
+.rule-line + .rule-line { margin-top: 3px; }
+.rule-line__txt { font-size: calc(13px * var(--ui-scale)); color: var(--n-600); }
+
+.wait { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+        font-size: calc(13px * var(--ui-scale)); color: var(--n-500); }
+.wait--long { color: var(--wa-fg); font-weight: 500; }
+
+/* Live "online, waiting" indicator. The only looping animation allowed in a
+   working surface, because it reports a genuine live state. */
+.pulse { position: relative; width: 10px; height: 10px; flex: none; }
+.pulse i {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--ok-fg);
+}
+.pulse::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: var(--ok-fg); animation: pulseOut 2.4s ease-out infinite;
+}
+@keyframes pulseOut {
+  0%   { transform: scale(1);   opacity: .55; }
+  100% { transform: scale(3.2); opacity: 0;   }
+}
+
+/* Breathing widget — opt-in, labelled, and clearly a wellbeing tool rather
+   than an unexplained circle floating on the canvas. */
+.breathe {
+  width: 118px; height: 118px; margin: 0 auto; border-radius: 50%;
+  display: grid; place-items: center; text-align: center;
+  background: radial-gradient(circle at 50% 40%,
+              color-mix(in srgb, var(--cf-brand-soft) 55%, white),
+              color-mix(in srgb, var(--cf-oat) 45%, white));
+  border: 1px solid rgba(255,255,255,.85);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 8px 24px rgba(29,34,31,.08);
+  font-size: calc(12.5px * var(--ui-scale)); color: var(--n-600);
+  animation: breathe 11s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(.88); }
+  45%, 55% { transform: scale(1.06); }
+}
+
+/* ---------------------------------------------------------------------------
+   13. MODAL + SIGNAL DISCLOSURE
+   ------------------------------------------------------------------------ */
+.scrim {
+  position: fixed; inset: 0; z-index: 60;
+  background: color-mix(in srgb, var(--n-900) 42%, transparent);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  display: grid; place-items: center; padding: var(--s-8);
+  animation: fadeIn 180ms ease both;
+  /* Round 37 (Bug 2) — IncomingCallOverlay's own fixed wrapper sets
+     visibility:hidden on itself while this scrim is open, to keep its
+     floating card from ghosting through the translucent backdrop below.
+     visibility inherits by default, so without this explicit override a
+     scrim mounted *inside* that same wrapper (this card's own Risk
+     Snapshot button) would incorrectly disappear along with it. */
+  visibility: visible;
+}
+.modal {
+  width: 100%; max-width: calc(600px * var(--ui-scale));
+  max-height: 88vh; display: flex; flex-direction: column;
+  background: rgba(255,255,255,.86);
+  -webkit-backdrop-filter: blur(30px) saturate(150%); backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255,255,255,.85);
+  border-radius: var(--r-lg); box-shadow: var(--e-3);
+  animation: rise 220ms cubic-bezier(.2,.7,.2,1) both;
+}
+.modal__head {
+  display: flex; align-items: flex-start; gap: var(--s-4);
+  padding: var(--s-5, var(--s-4)) var(--s-6) var(--s-4);
+  border-bottom: 1px solid var(--n-200);
+}
+/* `.modal` is `display:flex; flex-direction:column; max-height:88vh`
+   (above) — but a flex child's default `min-height:auto` means it won't
+   shrink below its own content's natural height even when the parent's
+   max-height would otherwise force it to. Without `flex:1; min-height:0`
+   here, `overflow:auto` was a no-op: tall content just grew this box past
+   `.modal`'s own 88vh, silently overflowing rather than clipping/scrolling
+   — reproduced live as an unscrollable Risk Snapshot with several flagged
+   dimensions, on a browser window short enough for that to matter. */
+.modal__body { padding: var(--s-6); overflow: auto; flex: 1; min-height: 0; }
+.modal__foot {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-4) var(--s-6); border-top: 1px solid var(--n-200);
+}
+.icon-btn {
+  width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+  border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--n-500); cursor: pointer; transition: background var(--t-micro), color var(--t-micro);
+}
+.icon-btn:hover { background: var(--n-100); color: var(--n-900); }
+
+/* Score with its scale made explicit — a bare number invites the question
+   "38 out of what, and is high bad?" every single time. */
+.score-block { display: flex; align-items: center; gap: var(--s-4); }
+.score-block__num {
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: calc(44px * var(--ui-scale)); line-height: 1; font-weight: 500; letter-spacing: -.03em;
+}
+.scale { height: 6px; border-radius: 3px; position: relative;
+         background: linear-gradient(90deg, var(--ok-fg) 0 34%, #D08700 34% 66%, var(--da-fg) 66% 100%);
+         opacity: .85; }
+.scale__pin {
+  position: absolute; top: -4px; width: 3px; height: 14px; border-radius: 2px;
+  background: var(--n-900); box-shadow: 0 0 0 2px rgba(255,255,255,.9);
+}
+.scale__ends { display: flex; justify-content: space-between; margin-top: 5px; }
+
+/* One signal row — used in the snapshot modal and in the pre-call dossier, so
+   the two surfaces cannot drift apart. */
+.sig {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--n-200); border-radius: var(--r-sm);
+  background: var(--n-0);
+}
+.sig + .sig { margin-top: var(--s-2); }
+.sig--flagged { border-color: var(--wa-br); background: color-mix(in srgb, var(--wa-bg) 55%, white); }
+.sig--clear   { background: transparent; border-color: var(--n-100); }
+.sig__name { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+.sig__why  { font-size: calc(13px * var(--ui-scale)); color: var(--n-600); margin-top: 3px; }
+
+.sec-head {
+  display: flex; align-items: center; gap: var(--s-2);
+  margin: var(--s-6) 0 var(--s-3);
+}
+.sec-head:first-child { margin-top: 0; }
+
+/* Disclosure for the signals that are clear — present, countable, out of the
+   way. Collapsed by default so the flagged ones are what you read. */
+.disclosure > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-2) var(--s-3); border-radius: var(--r-sm);
+  font-size: calc(13px * var(--ui-scale)); color: var(--n-600);
+}
+.disclosure > summary::-webkit-details-marker { display: none; }
+.disclosure > summary:hover { background: var(--n-50); }
+.disclosure > summary .chev { transition: transform var(--t-micro); }
+.disclosure[open] > summary .chev { transform: rotate(90deg); }
+.disclosure__body { padding-top: var(--s-2); }
+
+/* ---------------------------------------------------------------------------
+   14. INCOMING CALL
+   ------------------------------------------------------------------------ */
+.callcard {
+  width: 100%; max-width: calc(460px * var(--ui-scale));
+  padding: var(--s-8) var(--s-6) var(--s-6);
+  background: rgba(255,255,255,.88);
+  -webkit-backdrop-filter: blur(30px) saturate(150%); backdrop-filter: blur(30px) saturate(150%);
+  border: 1px solid rgba(255,255,255,.85);
+  border-radius: var(--r-lg); box-shadow: var(--e-3); text-align: center;
+  animation: rise 240ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+/* Ringing avatar. Two expanding rings on a long offset — this is the one
+   place a loop is not decoration: it reports that a person is waiting. */
+.ring-avatar { position: relative; width: 88px; height: 88px; margin: 0 auto var(--s-4); }
+.ring-avatar .avatar { width: 88px; height: 88px; position: relative; z-index: 1; }
+.ring-avatar::before, .ring-avatar::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid var(--wa-fg); opacity: 0;
+  animation: ringOut 2.6s cubic-bezier(.2,.7,.2,1) infinite;
+}
+.ring-avatar::after { animation-delay: 1.3s; }
+@keyframes ringOut {
+  0%   { transform: scale(1);   opacity: .5; }
+  100% { transform: scale(1.7); opacity: 0;  }
+}
+
+/* Wait timer that earns attention as it grows. */
+.ring-timer {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: calc(13px * var(--ui-scale)); color: var(--n-500);
+}
+.ring-timer.is-long { color: var(--wa-fg); font-weight: 500; }
+
+/* Why this call is here — the reason block, flagged signal first. */
+.why {
+  text-align: left; padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--wa-br); border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--wa-bg) 55%, white);
+}
+.why__line { display: flex; align-items: flex-start; gap: var(--s-2); }
+.why__line + .why__line { margin-top: var(--s-2); padding-top: var(--s-2); border-top: 1px solid var(--wa-br); }
+
+/* ---------------------------------------------------------------------------
+   15. CALL ROOM
+   Fixed video rail + fluid work panel. Established on screen 07 and held
+   unchanged through the KYC steps, the amber questions and the verdict, so
+   the video never moves under the agent mid-call.
+   ------------------------------------------------------------------------ */
+.callroom {
+  display: grid; grid-template-columns: calc(400px * var(--ui-scale)) minmax(0,1fr);
+  gap: var(--s-4); height: 100%; min-height: 0;
+}
+/* The work panel owns its own scroll so the action bar below it is always on
+   screen. Scrolling the whole page instead is what buried Proceed in the
+   original build. */
+.workpanel { display: flex; flex-direction: column; min-height: 0; }
+.workpanel__scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: var(--s-4);
+  padding-right: var(--s-1);
+}
+
+.videorail {
+  position: sticky; top: 0;
+  border-radius: var(--r-md); overflow: hidden;
+  background: #141715; color: var(--n-0);
+  display: flex; flex-direction: column;
+  box-shadow: var(--e-2);
+}
+.videofeed {
+  position: relative; flex: 1; min-height: calc(430px * var(--ui-scale));
+  background:
+    radial-gradient(120% 90% at 50% 22%, #4a5b52 0%, #2a332e 46%, #171b19 100%);
+}
+.videofeed__silhouette {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: 62%; color: rgba(255,255,255,.11);
+}
+.vid-chips { position: absolute; top: var(--s-3); left: var(--s-3); display: flex; gap: var(--s-2); }
+.vid-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 var(--s-2); border-radius: var(--r-sm);
+  font-size: calc(11px * var(--ui-scale)); font-weight: 600;
+  background: rgba(0,0,0,.42); color: var(--n-0);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.vid-chip--ok   { color: #7EE0B4; }
+.vid-chip--warn { color: #FFC964; }
+.vid-chip--bad  { color: #FF9E93; }
+.vid-timer {
+  position: absolute; top: var(--s-3); right: var(--s-3);
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: calc(13px * var(--ui-scale)); color: rgba(255,255,255,.85);
+  background: rgba(0,0,0,.42); padding: 3px var(--s-2); border-radius: var(--r-sm);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.vid-self {
+  position: absolute; right: var(--s-3); bottom: calc(var(--s-3) + 56px);
+  width: 92px; aspect-ratio: 4/3; border-radius: var(--r-sm); overflow: hidden;
+  border: 1px solid rgba(255,255,255,.24);
+  background: radial-gradient(120% 90% at 50% 30%, #55665c, #232a26);
+}
+.vid-controls {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-3); background: rgba(0,0,0,.34);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.vid-btn {
+  width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+  border-radius: var(--r-full); border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.1); color: var(--n-0); cursor: pointer;
+  transition: background var(--t-micro);
+}
+.vid-btn:hover { background: rgba(255,255,255,.2); }
+.vid-btn--end {
+  width: auto; padding: 0 var(--s-4); gap: var(--s-2); border-radius: var(--r-sm);
+  background: var(--da-fg); border-color: transparent; font-size: calc(13px * var(--ui-scale)); font-weight: 500;
+}
+.vid-btn--end:hover { background: #99201A; }
+
+/* ---------------------------------------------------------------------------
+   15b. KYC STEP RAIL
+   One compact row. Standard KYC is a checklist and reads as one; Amber
+   Resolution is a different kind of stage and is drawn as one — separated,
+   branded, and locked until the checklist is done. That single component
+   carries the product's argument: the ordinary steps are table stakes, the
+   last one is the thing this product adds.
+   ------------------------------------------------------------------------ */
+.steprail {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  background: rgba(255,255,255,.78);
+  -webkit-backdrop-filter: blur(20px) saturate(140%); backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--n-200); border-radius: var(--r-md); box-shadow: var(--e-1);
+}
+.step { display: flex; align-items: center; gap: var(--s-2); flex: none; }
+.step__dot {
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+}
+.step__label { font-size: calc(12.5px * var(--ui-scale)); white-space: nowrap; }
+
+.step--done .step__dot  { background: var(--cf-brand); color: var(--n-0); }
+.step--done .step__label { color: var(--n-500); }
+
+.step--current .step__dot {
+  border: 2px solid var(--cf-brand); color: var(--cf-brand); background: var(--n-0);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cf-brand) 16%, transparent);
+}
+.step--current .step__label { color: var(--n-900); font-weight: 600; }
+
+.step--todo .step__dot  { border: 1px solid var(--n-300); color: var(--n-400); background: var(--n-0); }
+.step--todo .step__label { color: var(--n-400); }
+
+.step__line { flex: 1 1 auto; min-width: 12px; height: 2px; border-radius: 1px; background: var(--n-200); }
+.step__line--done { background: var(--cf-brand); }
+
+/* The stage that is not a KYC step. */
+.step-amber {
+  display: flex; align-items: center; gap: var(--s-2); flex: none;
+  margin-left: var(--s-3); padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-full);
+  font-size: calc(12.5px * var(--ui-scale)); font-weight: 600; white-space: nowrap;
+}
+.step-amber--locked {
+  border: 1px dashed var(--n-300); color: var(--n-400); background: transparent;
+}
+.step-amber--active {
+  border: 1px solid var(--wa-br); color: var(--wa-fg);
+  background: color-mix(in srgb, var(--wa-bg) 70%, white);
+}
+
+/* Capture surface for a document step. */
+.capture {
+  position: relative; border-radius: var(--r-md); overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 30%, #43514a, #1b201d);
+  aspect-ratio: 16/9; max-height: calc(280px * var(--ui-scale));
+  display: grid; place-items: center;
+}
+.capture__frame {
+  position: absolute; inset: 14% 12%; border-radius: var(--r-sm);
+  border: 2px dashed rgba(255,255,255,.42);
+}
+.capture__doc {
+  width: 62%; aspect-ratio: 1.58; border-radius: 6px;
+  background: linear-gradient(135deg, #F3EFE2, #E3DCC8);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  position: relative; overflow: hidden;
+}
+.capture__doc i {
+  position: absolute; height: 5px; border-radius: 3px; background: rgba(29,34,31,.22);
+}
+.capture__badge {
+  position: absolute; left: var(--s-3); top: var(--s-3);
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px var(--s-2); border-radius: var(--r-sm);
+  background: rgba(0,0,0,.45); color: var(--n-0);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  font-size: calc(11px * var(--ui-scale)); font-weight: 600;
+}
+
+/* Field comparison: captured value against the value already on file. */
+.cmp { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--s-3);
+       padding: var(--s-2) 0; align-items: center; }
+.cmp + .cmp { border-top: 1px solid var(--n-100); }
+.cmp__head { font-family: var(--f-mono); font-size: calc(10.5px * var(--ui-scale));
+             letter-spacing: .07em; text-transform: uppercase; color: var(--n-500); }
+
+/* ---------------------------------------------------------------------------
+   15c. AMBER RESOLUTION
+   Four fixed zones, in this order, on every question:
+     A  case context   — one sticky line, not a banner that repeats forever
+     B  the question   — English and Hindi bound as one unit
+     C  answer machine — one box with four states, so nothing jumps
+     D  trail          — the audit record, promoted rather than buried
+   ------------------------------------------------------------------------ */
+
+/* A — context strip */
+.amberbar {
+  display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  background: color-mix(in srgb, var(--wa-bg) 55%, white);
+  border: 1px solid var(--wa-br); border-radius: var(--r-md);
+}
+.qprogress { display: flex; gap: 4px; }
+.qprogress i {
+  width: 26px; height: 4px; border-radius: 2px; background: var(--wa-br); display: block;
+}
+.qprogress i.is-done { background: var(--wa-fg); }
+.qprogress i.is-now  { background: var(--wa-fg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wa-fg) 20%, transparent); }
+
+/* Small utility buttons for the quick flags — utilities, not primary actions,
+   so they live in the header strip rather than competing at the bottom. */
+.tool-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 var(--s-2);
+  border: 1px solid var(--n-200); border-radius: var(--r-sm);
+  background: var(--n-0); color: var(--n-600); cursor: pointer;
+  font-size: calc(12.5px * var(--ui-scale));
+  transition: background var(--t-micro), border-color var(--t-micro), color var(--t-micro);
+}
+.tool-btn:hover { background: var(--n-50); border-color: var(--n-300); color: var(--n-900); }
+
+/* B — the question. The rule binds the two languages into one block so a
+   translated line can never read as a separate question. */
+.qtext { border-left: 3px solid var(--cf-brand); padding-left: var(--s-4); }
+.qtext__hi { margin-top: var(--s-2); }
+
+/* C — answer machine. One container, four states. */
+.machine {
+  border: 1px solid var(--n-200); border-radius: var(--r-md);
+  background: var(--n-50); padding: var(--s-4);
+}
+.machine--listening { border-color: var(--da-br); background: color-mix(in srgb, var(--da-bg) 45%, white); }
+.machine--thinking  { border-color: var(--cf-brand-100); background: var(--cf-brand-050); }
+
+.mic-btn {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  height: calc(44px * var(--ui-scale)); padding: 0 var(--s-5, var(--s-4));
+  border-radius: var(--r-sm); border: 0; cursor: pointer;
+  background: var(--cf-brand); color: var(--n-0);
+  font-size: calc(15px * var(--ui-scale)); font-weight: 500;
+  transition: background var(--t-micro);
+}
+.mic-btn:hover { background: var(--cf-brand-hover); }
+.mic-btn--stop { background: var(--da-fg); }
+.mic-btn--stop:hover { background: #99201A; }
+
+.select {
+  height: calc(38px * var(--ui-scale)); padding: 0 var(--s-3);
+  border: 1px solid var(--n-300); border-radius: var(--r-sm);
+  background: var(--n-0); font-size: calc(13.5px * var(--ui-scale)); color: var(--n-800);
+  /* Round 36 (Bug 3 re-fix) — a native <select> sizes itself to its longest
+     <option> text if unconstrained; the farmer tree's bilingual bucket
+     labels (English + Hindi combined, ~80 chars) were overflowing the card
+     and running off the page edge. max-width caps it to whatever container
+     it's actually placed in (a flex row here); min-width: 0 is required
+     alongside it so a flex child is actually allowed to shrink below its
+     content's intrinsic width, not just capped above it. The truncation
+     styles keep the closed-state text legible instead of silently clipped. */
+  max-width: 100%; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Live microphone level. Bars only animate while actually listening, so the
+   agent can tell at a glance that audio is reaching the system. */
+.wave { display: flex; align-items: center; gap: 3px; height: 26px; }
+.wave i {
+  width: 3px; border-radius: 2px; background: var(--da-fg); opacity: .85;
+  animation: waveBar 900ms ease-in-out infinite;
+}
+.wave i:nth-child(1) { height: 30%; animation-delay: 0ms;   }
+.wave i:nth-child(2) { height: 62%; animation-delay: 120ms; }
+.wave i:nth-child(3) { height: 96%; animation-delay: 60ms;  }
+.wave i:nth-child(4) { height: 48%; animation-delay: 240ms; }
+.wave i:nth-child(5) { height: 78%; animation-delay: 180ms; }
+.wave i:nth-child(6) { height: 36%; animation-delay: 320ms; }
+.wave i:nth-child(7) { height: 66%; animation-delay: 90ms;  }
+@keyframes waveBar { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+
+/* Live transcript. Committed words are solid; the interim tail is lighter and
+   italic, so the agent can see what is still provisional. */
+.transcript {
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-sm);
+  background: var(--n-0); border: 1px solid var(--n-200);
+  font-size: calc(16px * var(--ui-scale)); line-height: 1.5;
+}
+.transcript__committed { color: var(--n-900); }
+.transcript__interim   { color: var(--n-400); font-style: italic; }
+.transcript__caret {
+  display: inline-block; width: 2px; height: 1.05em; vertical-align: -2px;
+  background: var(--da-fg); margin-left: 2px; animation: caret 1s steps(1) infinite;
+}
+@keyframes caret { 50% { opacity: 0; } }
+
+/* Quoted answer, once committed. */
+.quote {
+  padding: var(--s-3) var(--s-4); border-left: 3px solid var(--n-300);
+  background: var(--n-50); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+/* The closed answer set. Visible before the answer arrives, because "the
+   model can only pick from this list" is the compliance argument and it
+   should be something a visitor can see rather than be told. */
+.bucketlist { display: flex; flex-direction: column; gap: var(--s-2); }
+.bucket {
+  display: flex; align-items: flex-start; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4); text-align: left; width: 100%;
+  border: 1px solid var(--n-200); border-radius: var(--r-sm);
+  background: var(--n-0); cursor: pointer;
+  transition: border-color var(--t-micro), background var(--t-micro), box-shadow var(--t-micro);
+}
+.bucket:hover { border-color: var(--cf-brand-100); background: var(--cf-brand-050); }
+.bucket__radio {
+  width: 17px; height: 17px; border-radius: 50%; flex: none; margin-top: 2px;
+  border: 1.5px solid var(--n-300); background: var(--n-0);
+}
+/* Two stacked lines, always. A Hindi label that wraps onto the English line
+   stops reading as a translation and starts reading as more question. */
+.bucket__en { display: block; font-size: calc(14px * var(--ui-scale)); font-weight: 500; line-height: 1.35; }
+.bucket__hi { display: block; font-size: calc(13px * var(--ui-scale)); color: var(--n-500); line-height: 1.55; margin-top: 3px; }
+/* The universal catch-all is never a crop category — it is drawn as an exit. */
+.bucket--catchall { border-style: dashed; background: transparent; }
+.bucket--catchall .bucket__en { color: var(--n-600); }
+
+/* D — the trail */
+.trail-row {
+  display: grid; grid-template-columns: minmax(0,1fr) auto; gap: var(--s-3);
+  padding: var(--s-2) 0; align-items: baseline;
+}
+.trail-row + .trail-row { border-top: 1px solid var(--n-100); }
+
+/* Segmented yes/no. "No" is not neutral — it is a problem, and it says so. */
+.seg { display: inline-flex; padding: 3px; gap: 3px; background: var(--n-100);
+       border-radius: var(--r-sm); }
+.seg__btn {
+  min-width: 62px; height: 32px; padding: 0 var(--s-3);
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  font-size: calc(13px * var(--ui-scale)); font-weight: 500; color: var(--n-600);
+  transition: background var(--t-micro), color var(--t-micro), box-shadow var(--t-micro);
+}
+.seg__btn:hover { background: rgba(255,255,255,.7); }
+.seg__btn[aria-pressed="true"] { background: var(--n-0); color: var(--n-900); box-shadow: var(--e-1); }
+.seg__btn[aria-pressed="true"][data-val="yes"] { color: var(--ok-fg); box-shadow: var(--e-1), inset 0 0 0 1px var(--ok-br); }
+.seg__btn[aria-pressed="true"][data-val="no"]  { color: var(--da-fg); box-shadow: var(--e-1), inset 0 0 0 1px var(--da-br); }
+
+.check-row {
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: var(--s-3) 0;
+}
+.check-row + .check-row { border-top: 1px solid var(--n-100); }
+
+/* Key/value rows for the applicant dossier. */
+.kv { display: grid; grid-template-columns: calc(160px * var(--ui-scale)) minmax(0,1fr); gap: var(--s-3);
+      padding: var(--s-2) 0; }
+.kv + .kv { border-top: 1px solid var(--n-100); }
+.kv__k { font-size: calc(13px * var(--ui-scale)); color: var(--n-500); }
+.kv__v { font-size: calc(14px * var(--ui-scale)); }
+
+/* Section disclosure used for the dossier groups. */
+.group > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-3) 0; font-weight: 500; font-size: calc(14px * var(--ui-scale));
+}
+.group > summary::-webkit-details-marker { display: none; }
+.group > summary .chev { transition: transform var(--t-micro); color: var(--n-400); }
+.group[open] > summary .chev { transform: rotate(90deg); }
+.group + .group { border-top: 1px solid var(--n-100); }
+.group__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+/* Sticky action bar. The primary action of a long scrolling panel must never
+   be below the fold — this was the original build's Proceed problem. */
+.actionbar {
+  flex: none; z-index: 5;
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4); margin-top: var(--s-4);
+  background: rgba(255,255,255,.9);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border: 1px solid var(--n-200); border-radius: var(--r-md); box-shadow: var(--e-2);
+}
+
+/* Inline metric used in empty states and queue headers. */
+.metric { display: flex; align-items: baseline; gap: var(--s-2); }
+.metric__num {
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: calc(22px * var(--ui-scale)); font-weight: 500; letter-spacing: -.02em;
+}
+
+/* ---------------------------------------------------------------------------
+   10. UTILITIES
+   ------------------------------------------------------------------------ */
+.stack   { display: flex; flex-direction: column; }
+.row     { display: flex; align-items: center; }
+.gap-1 { gap: var(--s-1);} .gap-2 { gap: var(--s-2);} .gap-3 { gap: var(--s-3);}
+.gap-4 { gap: var(--s-4);} .gap-6 { gap: var(--s-6);} .gap-8 { gap: var(--s-8);}
+.grow    { flex: 1 1 auto; min-width: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   11. RESPONSIVE
+   Target 1440, minimum supported 1280. Auth stacks below 900.
+   ------------------------------------------------------------------------ */
+@media (max-width: 900px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth__brand { min-height: 260px; padding: var(--s-6); }
+  .auth__name { font-size: calc(36px * var(--ui-scale)); }
+  .auth__rings { display: none; }
+}
+
+/* AGENT-PORT-NOTE (round 31): the two additions the round-30 port didn't have
+   reason to bring in yet — confirmed via a full stripped-comment diff against
+   the round-31 reference bundle that these two sections are the *only* real
+   content difference (font paths and the three deliberately-scoped global
+   selectors from round 30 are the only other diffs, both already correct/
+   intentional — see this file's earlier AGENT-PORT-NOTE for those). Ported
+   verbatim; no `--re-fg`/REFER-band tokens exist anywhere in the reference's
+   own `:root` either, so nothing here introduces a fourth verdict band — the
+   round-31 handoff itself makes no verdict-logic changes. */
+
+/* ---------------------------------------------------------------------------
+   16. TRAIL ITEM — question, what the applicant actually said, and the bucket
+   the agent confirmed. The quote is the audit record; the chip is the decision.
+   ------------------------------------------------------------------------ */
+.trail-item { padding: var(--s-3) 0; }
+.trail-item + .trail-item { border-top: 1px solid var(--n-100); }
+.trail-item__q { font-size: calc(13px * var(--ui-scale)); color: var(--n-500); margin-bottom: 4px; }
+.trail-item__said { font-size: calc(13.5px * var(--ui-scale)); color: var(--n-800); font-style: italic; margin-bottom: var(--s-2); }
+.trail-item__said b { font-style: normal; font-weight: 500; color: var(--n-500); }
+.trail-item__bucket {
+  display: inline-block; padding: 3px var(--s-2); border-radius: 6px;
+  background: var(--cf-brand-050); border: 1px solid var(--cf-brand-100);
+  font-size: calc(12.5px * var(--ui-scale)); font-weight: 500; color: var(--cf-brand-deep);
+}
+
+/* Queue: names and rule names never wrap — the row height is the scan rhythm. */
+.q-name .t-body-str, .rule-line__txt { white-space: nowrap; }
+
+/* ---------------------------------------------------------------------------
+   17. PRODUCT / NARRATIVE SCREENS (P01–P10)
+   ------------------------------------------------------------------------ */
+.hero { position: relative; min-height: 100vh; overflow: hidden; background: var(--auth-base);
+        display: flex; flex-direction: column; padding: var(--s-8) var(--s-12); }
+.hero > *:not(.atmos):not(.blueprint):not(.hero__object) { position: relative; z-index: 2; }
+.hero > .atmos, .hero > .blueprint { z-index: 0; }
+.hero__copy { margin: auto 0; max-width: 46ch; }
+.hero__title { font-size: calc(72px * var(--ui-scale)); line-height: 1.02; font-weight: 700; letter-spacing: -.035em; }
+.hero__title em { font-style: normal; color: var(--cf-brand); }
+.hero__sub { font-size: calc(20px * var(--ui-scale)); line-height: 1.5; color: var(--n-600); max-width: 40ch; margin-top: var(--s-4); }
+.hero__object { position: absolute; right: 6%; bottom: 4%; width: 40%; max-width: 560px; z-index: 1; pointer-events: none; }
+
+/* Score gauge — arc, brand-neutral track, band-coloured value */
+.gauge { position: relative; width: 132px; height: 132px; }
+.gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.gauge__val { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+
+/* Timeline */
+.tl { position: relative; padding-left: 22px; }
+.tl::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: var(--n-200); }
+.tl__item { position: relative; padding: var(--s-2) 0; }
+.tl__item::before { content: ""; position: absolute; left: -20px; top: 14px; width: 10px; height: 10px;
+                    border-radius: 50%; background: var(--n-300); box-shadow: 0 0 0 3px var(--n-0); }
+.tl__item.is-now::before { background: var(--wa-fg); }
+.tl__item.is-done::before { background: var(--cf-brand); }
+
+/* Scorecard bars */
+.bar-row { display: grid; grid-template-columns: minmax(0,1fr) 140px 48px; gap: var(--s-3); align-items: center; padding: var(--s-2) 0; }
+.bar-row + .bar-row { border-top: 1px solid var(--n-100); }
+.bar { height: 8px; border-radius: 4px; background: var(--n-100); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 4px; }
+
+/* Outcome tiles (P08) */
+.outcome { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
+.outcome__tile { padding: var(--s-4); border-radius: var(--r-md); border: 1px solid var(--n-200);
+                 background: rgba(255,255,255,.7); transition: transform var(--t-enter), box-shadow var(--t-enter); }
+.outcome__tile.is-chosen { transform: translateY(-4px); box-shadow: var(--e-3); }
+.outcome__tile.is-dim { opacity: .45; }
+@keyframes bandMorph { 0% { background: var(--wa-bg); border-color: var(--wa-br); color: var(--wa-fg); }
+                       100% { background: var(--ok-bg); border-color: var(--ok-br); color: var(--ok-fg); } }
+.morph { animation: bandMorph 1.6s ease-in-out 1s both; }
+
+/* Before / after */
+.ba { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--s-3); align-items: center; }
+.ba__num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: calc(30px * var(--ui-scale)); font-weight: 500; letter-spacing: -.03em; line-height: 1; }
+.ba__arrow { color: var(--n-300); }
+.delta { display: inline-flex; align-items: center; gap: 4px; font-family: var(--f-mono); font-size: 12px; font-weight: 500; }
+
+/* Activation stepper (P02) */
+.act { display: flex; flex-direction: column; gap: var(--s-3); }
+.act__row { display: flex; align-items: center; gap: var(--s-3); }
+.act__dot { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.act__row.is-done .act__dot { background: var(--cf-brand); color: #fff; }
+.act__row.is-now .act__dot { border: 2px solid var(--cf-brand); background: #fff; }
+.act__row.is-todo .act__dot { border: 1px solid var(--n-300); background: #fff; }
+.act__row.is-todo { color: var(--n-400); }
+
+/* Filter chips (P03) */
+.filter { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 var(--s-3);
+          border-radius: var(--r-full); border: 1px solid var(--n-200); background: var(--n-0);
+          font-size: 13px; font-weight: 500; color: var(--n-600); cursor: pointer; }
+.filter.is-on { border-color: var(--cf-brand); color: var(--cf-brand-deep); background: var(--cf-brand-050); }

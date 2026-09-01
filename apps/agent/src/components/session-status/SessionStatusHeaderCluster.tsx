@@ -1,15 +1,8 @@
-import { ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatHoursMinutes } from '@vkyc/shared/lib/format';
-import { cn } from '@vkyc/shared/lib/cn';
-import { StatusPill } from '@agent/components/ui/StatusPill';
-import { Avatar } from '@agent/components/ui/Avatar';
+import { getInitials } from '@vkyc/shared/lib/avatar';
 import type { AgentStatus } from '@vkyc/shared/data/types';
 import type { AvatarPerson } from '@vkyc/shared/lib/avatar';
-
-function VerticalDivider() {
-  return <div className="w-px h-5 bg-border" />;
-}
 
 interface SessionStatusHeaderClusterProps {
   person: AvatarPerson;
@@ -19,7 +12,22 @@ interface SessionStatusHeaderClusterProps {
   getBreakSec: () => number;
 }
 
-/** Logged-in · Break · avatar · status dropdown — shared by agent and auditor headers. */
+const STATUS_META: Record<AgentStatus, { label: string; desc: string; dotClass: string }> = {
+  online: { label: 'Online', desc: 'Receive amber cases', dotClass: 'status-dot--online' },
+  on_break: { label: 'On break', desc: 'Paused, time is tracked', dotClass: 'status-dot--break' },
+  offline: { label: 'Offline', desc: 'No cases routed to you', dotClass: 'status-dot--offline' },
+};
+
+/**
+ * Round 30 — rebuilt on the new `.topbar`/`.meter`/`.status-btn`/`.menu`
+ * classes (cf-design-system.css §9). Real `<button role="menu">` semantics
+ * added per the handoff (§8.2): `aria-haspopup`/`aria-expanded` on the
+ * trigger, `role="menuitemradio"` + `aria-checked` on each option, Escape
+ * closes in addition to the click-outside handling this already had. All
+ * state/timer logic below is untouched from before this round — restyle
+ * only, per the handoff's own explicit instruction not to reimplement the
+ * presence logic or the timers.
+ */
 export function SessionStatusHeaderCluster({
   person,
   status,
@@ -45,53 +53,69 @@ export function SessionStatusHeaderCluster({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const statusLabel = status === 'online' ? 'Online' : status === 'on_break' ? 'On Break' : 'Offline';
-  const statusVariant = status === 'online' ? 'passed' : status === 'on_break' ? 'average' : 'pending';
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
+
+  const meta = STATUS_META[status];
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-4 text-sm">
-        <div>
-          <span className="text-text-muted">Logged in: </span>
-          <span className="font-semibold">{formatHoursMinutes(getLoggedInSec())}</span>
-        </div>
-        <VerticalDivider />
-        <div>
-          <span className="text-text-muted">Break: </span>
-          <span className="font-semibold">{formatHoursMinutes(getBreakSec())}</span>
-        </div>
-        <VerticalDivider />
+    <div className="topbar__meters">
+      <div className="meter">
+        <span className="meter__label">Logged in</span>
+        <span className="meter__value">{formatHoursMinutes(getLoggedInSec())}</span>
       </div>
+      <div className="meter">
+        <span className="meter__label">Break</span>
+        <span className="meter__value">{formatHoursMinutes(getBreakSec())}</span>
+      </div>
+      <span className="topbar__rule" aria-hidden="true" />
+      <span className="avatar avatar--sm" title={person.name}>{getInitials(person.name)}</span>
 
-      <Avatar person={person} size="xs" ring="primary" title={person.name} />
-
-      <div className="relative" ref={ref}>
+      <div style={{ position: 'relative' }} ref={ref}>
         <button
           type="button"
-          onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:bg-primary-soft text-sm"
+          className="status-btn"
+          aria-haspopup="true"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
         >
-          <StatusPill label={statusLabel} variant={statusVariant} />
-          <ChevronDown size={14} className="text-text-muted" />
+          <span className={`status-dot ${meta.dotClass}`} aria-hidden="true" />
+          <span>{meta.label}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6" /></svg>
         </button>
         {open && (
-          <div className="absolute right-0 mt-1 w-40 bg-surface border border-border rounded-lg shadow-card py-1 z-50">
-            {(['online', 'on_break', 'offline'] as const).map((s) => (
+          <div className="menu" role="menu">
+            {(['online', 'on_break'] as const).map((s) => (
               <button
                 key={s}
                 type="button"
-                className={cn(
-                  'w-full text-left px-4 py-2 text-sm hover:bg-primary-soft',
-                  status === s && 'text-primary font-medium',
-                )}
-                onClick={() => {
-                  setStatus(s);
-                  setOpen(false);
-                }}
+                className="menu__item"
+                role="menuitemradio"
+                aria-checked={status === s}
+                onClick={() => { setStatus(s); setOpen(false); }}
               >
-                {s === 'online' ? 'Online' : s === 'on_break' ? 'On Break' : 'Offline'}
+                <span className={`status-dot ${STATUS_META[s].dotClass}`} aria-hidden="true" />
+                <span>{STATUS_META[s].label}<span className="menu__desc">{STATUS_META[s].desc}</span></span>
               </button>
             ))}
+            <div className="menu__sep" role="separator" />
+            <button
+              type="button"
+              className="menu__item"
+              role="menuitemradio"
+              aria-checked={status === 'offline'}
+              onClick={() => { setStatus('offline'); setOpen(false); }}
+            >
+              <span className="status-dot status-dot--offline" aria-hidden="true" />
+              <span>Offline<span className="menu__desc">No cases routed to you</span></span>
+            </button>
           </div>
         )}
       </div>

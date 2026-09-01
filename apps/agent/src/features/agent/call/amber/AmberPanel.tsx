@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Quote, Search, Mic, Eye, AlertCircle, HelpCircle, ArrowRightLeft } from 'lucide-react';
-import { Tag } from '@cashfree-intl/cashmere';
-import { Button } from '@agent/components/ui/Button';
-import { Card } from '@agent/components/ui/Card';
+import { Check, ChevronDown, Search, Mic, Eye, AlertCircle, HelpCircle, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@vkyc/shared/lib/cn';
 import type { AmberPersona } from './personas';
 import {
@@ -107,25 +104,37 @@ function MrHolmesBadge({ size = 11 }: { size?: number }) {
  * rendered directly under the English, when the node has one. Only
  * Farmer-tree nodes populate `questionHi` today; SIM/premium-address nodes
  * render exactly as before (no second line).
+ *
+ * Round 31 — restyled onto the design system's `.qtext`/`.t-question`/
+ * `.t-question-hi` classes (cf-design-system.css §"B — the question"): the
+ * left brand rule binds the two languages into one visual block per the
+ * design handoff's own rule ("a translated line can never read as a
+ * separate question"). Content/logic unchanged — same conditional, same
+ * fields read.
  */
 function QuestionText({ node }: { node: QuestionNode }) {
   return (
-    <>
-      <p className={cn('text-lg font-medium', node.questionHi ? 'mb-1' : 'mb-4')}>{node.question}</p>
+    <div className="qtext">
+      <h2 className="t-question">{node.question}</h2>
       {node.questionHi && (
-        <p className="text-base text-text-muted mb-4" lang="hi">{node.questionHi}</p>
+        <p className="t-question-hi qtext__hi" lang="hi">{node.questionHi}</p>
       )}
-    </>
+    </div>
   );
 }
 
-/** Same bilingual pattern as `QuestionText`, for a single tap's label wherever it renders — inline-safe (used inside flex rows with icons/checkmarks) since it stays a single inline-block unit. */
+/**
+ * Round 31 — restyled onto `.bucket__en`/`.bucket__hi` (always two stacked
+ * `display:block` lines per the design system, never inline) instead of the
+ * old ad-hoc Tailwind pair. Same bilingual pattern as `QuestionText`, for a
+ * single tap's label wherever it renders.
+ */
 function TapLabel({ tap }: { tap: Tap }) {
   return (
-    <span className="inline-block align-middle">
-      <span>{tap.label}</span>
+    <span>
+      <span className="bucket__en">{tap.label}</span>
       {tap.labelHi && (
-        <span className="block text-text-muted text-xs mt-0.5" lang="hi">{tap.labelHi}</span>
+        <span className="bucket__hi" lang="hi">{tap.labelHi}</span>
       )}
     </span>
   );
@@ -684,32 +693,96 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
   if (!node) return null;
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      <div className="px-5 py-2 border-b border-success-subtle bg-success-subtle text-xs text-success-strong font-medium">
-        All KYC steps completed. Resolving {persona.firedRules.length} flagged signal{persona.firedRules.length === 1 ? '' : 's'}.
-      </div>
-      <div className="px-5 pt-4 pb-2 border-b border-warning-border bg-warning-subtle">
-        <div className="flex items-center gap-2 mb-1">
-          <Tag size="small" type="background" status="warning">AMBER CASE</Tag>
-          <span className="text-xs text-text-muted">Question {questionCount} of 3–5</span>
-        </div>
-        <p className="text-xs text-text-muted mb-1">Fired rules:</p>
-        <ul className="text-xs text-warning-text list-disc list-inside">
-          {persona.firedRules.map((r) => (
-            <li key={r}>{r}</li>
+    <div className="flex flex-col h-full min-h-0" style={{ padding: 'var(--s-4)', gap: 'var(--s-4)' }}>
+      {/*
+       * Round 31 — Zone A, one context line (design handoff Template F /
+       * cf-design-system.css's `.amberbar`), replacing the old two-stacked-
+       * banner header. The reference's own comment calls this exact
+       * pre-round-31 pattern out by name: "the fired-rules banner repeated
+       * at full height on every single question." Content unchanged — same
+       * `persona.firedRules`, same quick-flag/handover actions, same
+       * question-count math — just consolidated into one strip instead of
+       * two, with the quick actions moved in from the old bottom toolbar
+       * (PersistentControls) per the reference's own "utilities, not
+       * primary actions, so they live in the header strip" rule.
+       */}
+      <div className="amberbar">
+        <span className="chip chip--wa">Amber case</span>
+        <span className="t-body-str">Question {questionCount} of 3–5</span>
+        <span className="qprogress" aria-label={`Question ${questionCount} of up to 5`}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <i key={n} className={n < questionCount ? 'is-done' : n === questionCount ? 'is-now' : undefined} />
           ))}
-        </ul>
+        </span>
+
+        <details style={{ marginLeft: 'auto' }}>
+          <summary className="tool-btn" style={{ listStyle: 'none' }}>
+            <span className="dim-dot dim-dot--med" aria-hidden="true" />
+            {persona.firedRules.length} signal{persona.firedRules.length === 1 ? '' : 's'} being resolved
+          </summary>
+          <ul style={{ marginTop: 'var(--s-2)', paddingLeft: 'var(--s-4)' }} className="t-small c-muted">
+            {persona.firedRules.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </details>
+
+        <span className="row gap-2">
+          <button type="button" className="tool-btn" title="Log that the applicant is being coached" onClick={() => toggleAction('coached')}>
+            <Eye size={13} /> {coachedFlag ? 'Coached ✓' : 'Coached'}
+          </button>
+          <button type="button" className="tool-btn" title="Log a data error on the applicant record" onClick={() => toggleAction('data_error')}>
+            <AlertCircle size={13} /> {dataErrorFlag ? 'Data error ✓' : 'Data error'}
+          </button>
+          <button type="button" className="tool-btn" title='Script for "why are you asking me this?"' onClick={() => setShowWhyScript((s) => !s)}>
+            <HelpCircle size={13} /> Why asking?
+          </button>
+          <button type="button" className="tool-btn" title="Hand this call to another agent" onClick={() => setShowHandover(true)}>
+            <ArrowRightLeft size={13} /> Handover
+          </button>
+        </span>
+
         {handoverLog.length > 0 && (
-          <p className="text-xs text-accent mt-1">
+          <p className="t-small" style={{ color: 'var(--cf-brand-deep)', width: '100%' }}>
             Handed over {handoverLog.length} time{handoverLog.length === 1 ? '' : 's'} — {handoverLog[handoverLog.length - 1]}
           </p>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        <Card padding>
-          <p className="text-xs uppercase tracking-wide text-text-muted mb-2">Q{questionCount}</p>
-          <QuestionText node={node} />
+      {showWhyScript && (
+        <div className="card card--pad t-small c-muted" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+          <p>"These are standard verification questions we are required to ask to confirm we are speaking with you in real time."</p>
+          <p style={{ fontStyle: 'italic' }}>If pressed on how we know something: "I don't, that's why I'm asking."</p>
+        </div>
+      )}
+      {showHandover && (
+        <div className="card card--pad t-small" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
+          <p className="c-muted">Language mismatch or shift change — progress and audit trail survive the handover.</p>
+          <input
+            className="field__input"
+            value={handoverAgentName}
+            onChange={(e) => setHandoverAgentName(e.target.value)}
+            placeholder="Receiving agent's name"
+          />
+          <input
+            className="field__input"
+            value={handoverNote}
+            onChange={(e) => setHandoverNote(e.target.value)}
+            placeholder="Reason (optional)"
+          />
+          <div className="row gap-2">
+            <button type="button" className="btn btn--secondary" onClick={() => setShowHandover(false)}>Cancel</button>
+            <button type="button" className="btn btn--primary" disabled={!handoverAgentName.trim()} onClick={handleHandoverSubmit}>Confirm handover</button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
+        <section className="card card--pad" aria-labelledby="qHead">
+          <p className="t-eyebrow c-muted" style={{ marginBottom: 'var(--s-3)' }}>Question {questionCount}</p>
+          <div style={{ marginBottom: 'var(--s-4)' }}>
+            <QuestionText node={node} />
+          </div>
 
           {flowState === 'awaiting' && (
             <SpeechCapture
@@ -721,51 +794,68 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
             />
           )}
 
+          {/*
+           * Round 31 — restyled onto `.quote` (design system §"B/C"): shown
+           * once listening stops and a finalized transcript exists, exactly
+           * as before (same `flowState !== 'awaiting'` condition) — carries
+           * through 'transcript', 'processing', 'suggested' and 'confirmed'
+           * unchanged.
+           */}
           {flowState !== 'awaiting' && (
-            <div className="mb-4 rounded-lg bg-bg border border-border px-3 py-2.5 flex gap-2">
-              <Quote size={14} className="shrink-0 mt-0.5 text-text-muted" />
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-text-muted mb-0.5">Applicant said:</p>
-                <p className="text-sm italic text-text">{speech.transcript}</p>
-              </div>
+            <div className="quote" style={{ marginBottom: 'var(--s-3)' }}>
+              <p className="t-eyebrow c-muted" style={{ marginBottom: 4 }}>Applicant said</p>
+              <p className="t-body-lg" style={{ fontStyle: 'italic' }}>{speech.transcript}</p>
             </div>
           )}
 
           {flowState === 'processing' && (
-            <div className="mb-4 bg-accent-subtle rounded-lg p-3.5 flex items-center gap-3">
-              <span className="relative inline-flex items-center justify-center w-5 h-5 shrink-0">
-                <span className="absolute inset-0 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-                <MrHolmesBadge size={9} />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-accent">Mr. Holmes is reviewing the response…</p>
-                <p className="text-xs text-text-muted">Matching the applicant's answer to a response bucket</p>
+            <div className="machine machine--thinking" style={{ marginBottom: 'var(--s-4)' }}>
+              <div className="row gap-3">
+                <span className="spinner c-brand" aria-hidden="true" />
+                <div className="grow">
+                  <p className="t-body-str c-brand">Mr. Holmes is reviewing the response…</p>
+                  <p className="t-small c-muted">Matching the applicant's answer to a response bucket</p>
+                </div>
               </div>
             </div>
           )}
 
           {/* Round 30 (§3): the ~150-word auto-stop fired — shown instead of the normal processing/suggestion flow, feeding straight into the degraded Other/Unclear-suggested view below. */}
           {answerTooLong && (
-            <div className="mb-4 rounded-lg border border-warning-border bg-warning-subtle px-3.5 py-2.5">
-              <p className="text-sm font-medium text-warning-text">Answer was too long to process</p>
-              <p className="text-xs text-text-muted mt-0.5">Capped at ~150 words. Confirm Other/Unclear below, or pick a bucket manually.</p>
+            <div className="card card--warn card--pad" style={{ marginBottom: 'var(--s-4)' }}>
+              <p className="t-body-str" style={{ color: 'var(--wa-fg)' }}>Answer was too long to process</p>
+              <p className="t-small c-muted" style={{ marginTop: 2 }}>Capped at ~150 words. Confirm Other/Unclear below, or pick a bucket manually.</p>
             </div>
           )}
 
           {/*
            * Persistent bucket list (round 4, Section B2) — present from the
            * moment the question loads, not just once a suggestion exists.
-           * Styling/interactivity changes per state; visibility doesn't.
+           * Round 31: restyled onto `.bucketlist`/`.bucket`/`.bucket--catchall`
+           * (the catch-all's dashed border is exactly the design system's own
+           * "this is a fallback, not a category" language — a direct visual
+           * match for the Option-B Other/Unclear default from Handoff 30).
+           * Styling/interactivity changes per state; visibility, membership
+           * and every handler are unchanged.
            */}
+          <div className="row gap-2" style={{ marginBottom: 'var(--s-3)' }}>
+            <span className="t-eyebrow c-muted">
+              {flowState === 'awaiting' || flowState === 'transcript' || flowState === 'processing'
+                ? 'Listening for one of these'
+                : flowState === 'confirmed'
+                  ? 'Answer recorded'
+                  : degraded ? "Mr. Holmes couldn't narrow this down" : 'Mr. Holmes suggests — or choose a different answer'}
+            </span>
+            <span className="chip chip--neutral chip--mono">{node.taps.length}</span>
+          </div>
+
           {flowState !== 'suggested' ? (
-            <div className="space-y-2">
-              {(flowState === 'awaiting' || flowState === 'transcript' || flowState === 'processing') && (
-                <p className="text-[10px] uppercase tracking-wide text-text-muted mb-1.5">Listening for one of these responses</p>
-              )}
+            <div className="bucketlist" style={{ marginBottom: 'var(--s-4)' }}>
               {node.taps.map((tap) => {
                 if (flowState === 'awaiting' || flowState === 'transcript' || flowState === 'processing') {
                   return (
-                    <div key={tap.id} className="px-4 py-3 rounded-lg text-sm text-text-muted cursor-default">
+                    <div key={tap.id} className={cn('bucket', tap.id === 'unclear' && 'bucket--catchall')} style={{ cursor: 'default', color: 'var(--n-500)' }}>
+                      <span className="bucket__radio" aria-hidden="true" />
                       <TapLabel tap={tap} />
                     </div>
                   );
@@ -773,16 +863,19 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
                 // flowState === 'confirmed'
                 if (tap.id === confirmedTapId) {
                   return (
-                    <div
-                      key={tap.id}
-                      className="flex items-center gap-2 px-4 py-3 rounded-lg border border-primary bg-primary-soft text-sm font-medium"
-                    >
-                      <Check size={14} className="text-primary shrink-0" /> <TapLabel tap={tap} />
+                    <div key={tap.id} className="bucket" role="radio" aria-checked="true"
+                      style={{ borderColor: 'var(--ok-br)', background: 'var(--ok-bg)' }}>
+                      <span className="bucket__radio" aria-hidden="true"
+                        style={{ borderColor: 'var(--ok-fg)', background: 'var(--ok-fg)', display: 'grid', placeItems: 'center' }}>
+                        <Check size={10} color="#fff" strokeWidth={4} />
+                      </span>
+                      <TapLabel tap={tap} />
                     </div>
                   );
                 }
                 return (
-                  <div key={tap.id} className="px-4 py-3 rounded-lg text-sm text-text-muted/40 opacity-40">
+                  <div key={tap.id} className={cn('bucket', tap.id === 'unclear' && 'bucket--catchall')} style={{ cursor: 'default', opacity: 0.38 }}>
+                    <span className="bucket__radio" aria-hidden="true" />
                     <TapLabel tap={tap} />
                   </div>
                 );
@@ -790,81 +883,54 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
             </div>
           ) : (
             /*
-             * Round 16 (§9, reconciled): the tinted-panel + left-border +
-             * radio-indicator treatment applies ONLY here, once a
-             * suggestion exists (state D) — confirmed explicitly in the
-             * round 16 reconciliation, scoped in component logic rather
-             * than applied to the whole list regardless of state. States
-             * A-C above keep round 4's original plain treatment.
+             * Round 16 (§9, reconciled): the suggestion is lifted OUT of the
+             * list into its own card — round 31's design handoff calls this
+             * the same load-bearing decision independently (§8: "if the
+             * suggested option is highlighted inside the list, the list
+             * changes meaning mid-flow"). Confirmed this already matched;
+             * restyled the lifted card onto a plain `.card` (per reference
+             * screen 12) instead of a tinted/bordered div, and the remaining
+             * options onto `.bucket` so correcting is still one click.
              */
-            <div className="bg-bg rounded-lg p-3.5 space-y-2">
+            <div style={{ marginBottom: 'var(--s-4)', display: 'flex', flexDirection: 'column', gap: 'var(--s-3)' }}>
               {/*
-               * Round 30 (§2): the banner + Retake now only render here when
-               * degraded mode has NO suggestion to offer at all (no `unclear`
-               * tap on this node — SIM/premium-address only in practice).
-               * When a suggestion exists (a real classifier match, or the
-               * Option-B Other/Unclear default), its own card below carries
-               * the messaging and the Retake action instead — one element
-               * doing the job, not two competing ones.
+               * Round 30 (§2): the banner + Retake only render standalone
+               * when degraded mode has NO suggestion to offer at all (no
+               * `unclear` tap on this node — SIM/premium-address only in
+               * practice). When a suggestion exists, its own card below
+               * carries the messaging and the Retake action instead.
                */}
               {degraded && !suggestedTapId && (
-                <>
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-text-muted mb-1.5">
-                    <MrHolmesBadge /> Mr. Holmes couldn't narrow this down — select manually
-                  </p>
-                  {/*
-                   * Round 19: equal-weight alternative to manual selection,
-                   * not buried — the agent has two legitimate choices here
-                   * (give the applicant another chance, or pick manually),
-                   * not one primary path and a fallback. Round 23: uncapped
-                   * — always available, any number of times.
-                   */}
-                  <button
-                    type="button"
-                    onClick={handleRetake}
-                    className="inline-flex items-center gap-1.5 mb-1.5 px-3 py-1.5 rounded-full border border-border text-sm font-medium text-text hover:bg-surface"
-                  >
-                    <Mic size={13} /> Retake — listen again
+                <div>
+                  <p className="t-body-str c-muted" style={{ marginBottom: 'var(--s-2)' }}>Mr. Holmes couldn't narrow this down — select manually</p>
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={handleRetake}>
+                    <Mic size={14} /> Retake — listen again
                   </button>
-                </>
+                </div>
               )}
               {node.taps.map((tap) => {
                 if (tap.id === suggestedTapId) {
                   return (
-                    <div
-                      key={tap.id}
-                      ref={suggestedCardRef}
-                      className={cn(
-                        'rounded-lg border-l-[3px] px-4 py-3',
-                        degraded ? 'border-text-muted bg-surface' : 'border-primary bg-primary-soft',
-                      )}
-                    >
-                      {/*
-                       * Round 30 (§2): distinct copy when this is the
-                       * degraded Option-B default rather than a real
-                       * classification, so the agent isn't misled into
-                       * thinking the model actually recognized the answer.
-                       */}
-                      <p className={cn('flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide mb-1', degraded ? 'text-text-muted' : 'text-primary')}>
-                        <MrHolmesBadge size={10} /> {degraded ? "Mr. Holmes couldn't narrow this down" : 'Mr. Holmes suggests'}
-                      </p>
-                      <p className="text-sm font-medium mb-3"><TapLabel tap={tap} /></p>
+                    <div key={tap.id} ref={suggestedCardRef} className="card card--pad" style={degraded ? undefined : { background: 'var(--cf-brand-050)', borderColor: 'var(--cf-brand-100)' }}>
+                      <div className="row gap-2" style={{ marginBottom: 'var(--s-2)' }}>
+                        <MrHolmesBadge size={15} />
+                        <span className="t-eyebrow" style={{ color: degraded ? 'var(--n-600)' : 'var(--cf-brand)' }}>
+                          {degraded ? "Mr. Holmes couldn't narrow this down" : 'Mr. Holmes suggests'}
+                        </span>
+                      </div>
+                      <p className="bucket__en" style={{ fontSize: 16 }}><TapLabel tap={tap} /></p>
                       {degraded && (
-                        <p className="text-xs text-text-muted mb-3">Confirm Other/Unclear if that fits, or pick a bucket below.</p>
+                        <p className="t-small c-muted" style={{ marginTop: 'var(--s-2)' }}>Confirm Other/Unclear if that fits, or pick a bucket below.</p>
                       )}
-                      <div className="flex items-center gap-3">
-                        <Button size="sm" onClick={handleConfirm}>Confirm</Button>
+                      <div className="row gap-3" style={{ marginTop: 'var(--s-4)' }}>
+                        <button type="button" className="btn btn--primary btn--sheen" onClick={handleConfirm}>Confirm</button>
                         {/*
                          * Round 19: quiet, secondary — Confirm is the
                          * expected default path, Retake here is the
-                         * exception (the agent noticing the match doesn't
-                         * reflect what was actually said), so this
-                         * shouldn't compete visually with Confirm. Round 23:
-                         * uncapped — always available, any number of times.
+                         * exception. Round 23: uncapped — always available,
+                         * any number of times.
                          */}
-                        <button type="button" onClick={handleRetake} className="text-xs text-text-muted underline">
-                          Not what they said? Retake
-                        </button>
+                        <button type="button" className="link-btn" onClick={handleRetake}>Not what they said? Retake</button>
                       </div>
                     </div>
                   );
@@ -873,10 +939,12 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
                   <button
                     key={tap.id}
                     type="button"
+                    className={cn('bucket', tap.id === 'unclear' && 'bucket--catchall')}
+                    role="radio"
+                    aria-checked="false"
                     onClick={() => handleCorrect(tap.id)}
-                    className="w-full flex items-center gap-2.5 text-left px-4 py-3 rounded-lg border-l-[3px] border-border bg-surface text-sm hover:border-warning-border hover:bg-warning-subtle/30"
                   >
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-border shrink-0" aria-hidden />
+                    <span className="bucket__radio" aria-hidden="true" />
                     <TapLabel tap={tap} />
                   </button>
                 );
@@ -892,39 +960,37 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
            * shown once the case has already committed to terminating.
            */}
           {unclearPending && (
-            <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
-              <p className="text-xs text-text-muted">
+            <div style={{ marginTop: 'var(--s-4)', paddingTop: 'var(--s-3)', borderTop: '1px solid var(--n-100)', display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
+              <p className="t-small c-muted">
                 Routing to separate review. Optionally add a note for the reviewer before submitting.
               </p>
               <textarea
                 value={unclearNote}
                 onChange={(e) => setUnclearNote(e.target.value)}
                 placeholder="Free-text note (low friction — this must never be harder than picking a near-miss bucket)"
-                className="w-full px-3 py-2 rounded-lg border border-border text-sm h-16 resize-none"
+                className="field__input"
+                style={{ height: 64, resize: 'none' }}
               />
-              <Button size="sm" variant="secondary" onClick={submitUnclearNote}>Confirm and Route to Separate Review</Button>
+              <button type="button" className="btn btn--secondary" onClick={submitUnclearNote}>Confirm and Route to Separate Review</button>
             </div>
           )}
 
           {flowState === 'suggested' && !nodeHasOwnOtherTap && !unclearPending && (
-            <div className="mt-4 pt-3 border-t border-border/60">
+            <div style={{ marginTop: 'var(--s-4)', paddingTop: 'var(--s-3)', borderTop: '1px solid var(--n-100)' }}>
               {!showOtherInput ? (
-                <button
-                  type="button"
-                  className="text-xs text-text-muted underline"
-                  onClick={() => setShowOtherInput(true)}
-                >
+                <button type="button" className="link-btn" onClick={() => setShowOtherInput(true)}>
                   Other / does not fit any bucket
                 </button>
               ) : (
-                <div className="space-y-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
                   <textarea
                     value={otherNote}
                     onChange={(e) => setOtherNote(e.target.value)}
                     placeholder="Free-text note (low friction — this must never be harder than picking a near-miss bucket)"
-                    className="w-full px-3 py-2 rounded-lg border border-border text-sm h-16 resize-none"
+                    className="field__input"
+                    style={{ height: 64, resize: 'none' }}
                   />
-                  <Button size="sm" variant="secondary" onClick={handleOtherSubmit}>Route to separate review</Button>
+                  <button type="button" className="btn btn--secondary" onClick={handleOtherSubmit}>Route to separate review</button>
                 </div>
               )}
             </div>
@@ -942,149 +1008,41 @@ export function AmberPanel({ persona, hasPriorAttempt, onVerdict, onContinue, on
               }}
             />
           )}
-        </Card>
+        </section>
 
-        {path.length > 0 && (
-          <Card padding className="bg-surface/60">
-            <p className="text-xs uppercase tracking-wide text-text-muted mb-2">Transcript so far</p>
-            <ul className="space-y-1 text-sm">
+        {/*
+         * Zone D — the trail. Round 31: restyled onto `.trail-row` (the
+         * design system's mid-call trail entry — reference screen 13; the
+         * richer `.trail-item` with its own quoted "Applicant said" line is
+         * reserved for Case Summary specifically, per the round-31 handoff's
+         * own §0). Present from the start (empty state with a promise), same
+         * as before — content and `path` untouched.
+         */}
+        <section className="card card--pad" aria-labelledby="trailHead">
+          <div className="row gap-2" style={{ marginBottom: 'var(--s-2)' }}>
+            <h3 className="t-body-str" id="trailHead">Answer trail</h3>
+            <span className="chip chip--neutral chip--mono" style={{ marginLeft: 'auto' }}>{path.length} of 3–5</span>
+          </div>
+          {path.length === 0 ? (
+            <p className="t-small c-faint">
+              Every question, the answer heard, and the option you confirmed will be
+              recorded here and attached to the case.
+            </p>
+          ) : (
+            <div>
               {path.map((p, i) => (
-                <li key={i} className="flex justify-between gap-2 text-text-muted">
-                  <span>{p.question}</span>
-                  <span className={cn('font-medium', p.corrected ? 'text-warning' : 'text-text')}>
+                <div key={i} className="trail-row">
+                  <span className="t-small c-muted">{p.question}</span>
+                  <span className={cn('t-small t-body-str', p.corrected && 'c-wa')}>
                     {p.tapLabel}
                     {p.corrected && ' (corrected)'}
                   </span>
-                </li>
+                </div>
               ))}
-            </ul>
-          </Card>
-        )}
-      </div>
-
-      <PersistentControls
-        coachedFlag={coachedFlag}
-        dataErrorFlag={dataErrorFlag}
-        showWhyScript={showWhyScript}
-        showHandover={showHandover}
-        handoverAgentName={handoverAgentName}
-        handoverNote={handoverNote}
-        onToggleCoached={() => toggleAction('coached')}
-        onToggleDataError={() => toggleAction('data_error')}
-        onToggleWhyScript={() => setShowWhyScript((s) => !s)}
-        onHandoverRequest={() => setShowHandover(true)}
-        onHandoverCancel={() => setShowHandover(false)}
-        onHandoverAgentNameChange={setHandoverAgentName}
-        onHandoverNoteChange={setHandoverNote}
-        onHandoverSubmit={handleHandoverSubmit}
-      />
-    </div>
-  );
-}
-
-function PersistentControls({
-  coachedFlag,
-  dataErrorFlag,
-  showWhyScript,
-  showHandover,
-  handoverAgentName,
-  handoverNote,
-  onToggleCoached,
-  onToggleDataError,
-  onToggleWhyScript,
-  onHandoverRequest,
-  onHandoverCancel,
-  onHandoverAgentNameChange,
-  onHandoverNoteChange,
-  onHandoverSubmit,
-}: {
-  coachedFlag: boolean;
-  dataErrorFlag: boolean;
-  showWhyScript: boolean;
-  showHandover: boolean;
-  handoverAgentName: string;
-  handoverNote: string;
-  onToggleCoached: () => void;
-  onToggleDataError: () => void;
-  onToggleWhyScript: () => void;
-  onHandoverRequest: () => void;
-  onHandoverCancel: () => void;
-  onHandoverAgentNameChange: (v: string) => void;
-  onHandoverNoteChange: (v: string) => void;
-  onHandoverSubmit: () => void;
-}) {
-  return (
-    <div className="border-t border-border px-5 py-3 bg-surface">
-      {/*
-       * Round 15 (§6): the biggest real-estate fix — a single-row, low-height
-       * pill toolbar instead of round 9's full-width card + 2x2 grid. Same
-       * four actions, far less vertical space; no card wrapper or eyebrow
-       * padding block, just a small inline label before the pills.
-       */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted shrink-0">Quick flags</span>
-        <button
-          type="button"
-          onClick={onToggleCoached}
-          className={cn(
-            'inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs',
-            coachedFlag ? 'bg-warning-subtle border-warning-border text-warning-text font-medium' : 'border-border text-text-muted hover:bg-bg',
+            </div>
           )}
-        >
-          <Eye size={13} /> Coached
-        </button>
-        <button
-          type="button"
-          onClick={onToggleDataError}
-          className={cn(
-            'inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs',
-            dataErrorFlag ? 'bg-warning-subtle border-warning-border text-warning-text font-medium' : 'border-border text-text-muted hover:bg-bg',
-          )}
-        >
-          <AlertCircle size={13} /> Data error
-        </button>
-        <button
-          type="button"
-          onClick={onToggleWhyScript}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-border text-text-muted text-xs hover:bg-bg"
-        >
-          <HelpCircle size={13} /> "Why asking?" script
-        </button>
-        <button
-          type="button"
-          onClick={onHandoverRequest}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-border text-text-muted text-xs hover:bg-bg"
-        >
-          <ArrowRightLeft size={13} /> Handover
-        </button>
+        </section>
       </div>
-      {showWhyScript && (
-        <div className="mt-2 text-xs text-text-muted bg-surface border border-border rounded-lg p-3 space-y-1">
-          <p>"These are standard verification questions we are required to ask to confirm we are speaking with you in real time."</p>
-          <p className="italic">If pressed on how we know something: "I don't, that's why I'm asking."</p>
-        </div>
-      )}
-      {showHandover && (
-        <div className="mt-2 text-xs bg-surface border border-border rounded-lg p-3 space-y-2">
-          <p className="text-text-muted">Language mismatch or shift change — progress and audit trail survive the handover.</p>
-          <input
-            value={handoverAgentName}
-            onChange={(e) => onHandoverAgentNameChange(e.target.value)}
-            placeholder="Receiving agent's name"
-            className="w-full px-3 py-2 rounded-lg border border-border text-sm"
-          />
-          <input
-            value={handoverNote}
-            onChange={(e) => onHandoverNoteChange(e.target.value)}
-            placeholder="Reason (optional)"
-            className="w-full px-3 py-2 rounded-lg border border-border text-sm"
-          />
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={onHandoverCancel}>Cancel</Button>
-            <Button size="sm" onClick={onHandoverSubmit} disabled={!handoverAgentName.trim()}>Confirm handover</Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1114,52 +1072,39 @@ function AbortAccordion({
   const escalation = ABORT_REASONS.filter((r) => r.kind === 'escalation');
 
   return (
-    <div className="mt-4 pt-3 border-t border-border/60">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-1 text-xs text-text-muted underline"
-      >
-        Unable to resolve / Abort call <ChevronDown size={12} className={cn('transition-transform', open && 'rotate-180')} />
+    <div style={{ marginTop: 'var(--s-4)', paddingTop: 'var(--s-3)', borderTop: '1px solid var(--n-100)' }}>
+      <button type="button" onClick={onToggle} className="link-btn" style={{ color: 'var(--n-600)' }}>
+        Unable to resolve · abort call
+        <ChevronDown size={14} style={{ transition: 'transform var(--t-micro)', transform: open ? 'rotate(180deg)' : undefined }} />
       </button>
       {open && (
-        <div className="mt-2 rounded-lg border border-danger bg-danger-subtle/40 p-3 space-y-3">
+        <div className="card card--pad" style={{ marginTop: 'var(--s-2)', borderColor: 'var(--da-br)', background: 'color-mix(in srgb, var(--da-bg) 45%, white)', display: 'flex', flexDirection: 'column', gap: 'var(--s-3)' }}>
           {escalationPending ? (
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-danger">{escalationPending.label}</p>
-              <p className="text-xs text-text-muted">{escalationPending.routingNote}</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" onClick={onEscalationCancel}>Cancel</Button>
-                <Button size="sm" variant="destructive" onClick={onEscalationConfirm}>Confirm</Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
+              <p className="t-body-str" style={{ color: 'var(--da-fg)' }}>{escalationPending.label}</p>
+              <p className="t-small c-muted">{escalationPending.routingNote}</p>
+              <div className="row gap-2">
+                <button type="button" className="btn btn--secondary" onClick={onEscalationCancel}>Cancel</button>
+                <button type="button" className="btn btn--danger" onClick={onEscalationConfirm}>Confirm</button>
               </div>
             </div>
           ) : (
             <>
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-text-muted mb-1.5">Retry-safe — stays on this question</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="t-eyebrow c-muted" style={{ marginBottom: 'var(--s-2)' }}>Retry-safe — stays on this question</p>
+                <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
                   {retrySafe.map((reason) => (
-                    <button
-                      key={reason.id}
-                      type="button"
-                      onClick={() => onReasonTap(reason.id)}
-                      className="text-xs px-2.5 py-1.5 rounded-full border border-border text-text-muted hover:bg-surface text-left"
-                    >
+                    <button key={reason.id} type="button" onClick={() => onReasonTap(reason.id)} className="chip chip--neutral" style={{ cursor: 'pointer', border: '1px solid var(--n-200)' }}>
                       {reason.label}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-text-muted mb-1.5">Escalation — routes to Review</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="t-eyebrow c-muted" style={{ marginBottom: 'var(--s-2)' }}>Escalation — routes to Review</p>
+                <div className="row gap-2" style={{ flexWrap: 'wrap' }}>
                   {escalation.map((reason) => (
-                    <button
-                      key={reason.id}
-                      type="button"
-                      onClick={() => onReasonTap(reason.id)}
-                      className="text-xs px-2.5 py-1.5 rounded-full border border-danger text-danger hover:bg-danger-subtle text-left"
-                    >
+                    <button key={reason.id} type="button" onClick={() => onReasonTap(reason.id)} className="chip chip--da" style={{ cursor: 'pointer' }}>
                       {reason.label}
                     </button>
                   ))}
@@ -1194,40 +1139,43 @@ function SpeechCapture({
 }) {
   if (speech.status === 'unsupported') {
     return (
-      <div className="mb-4 text-xs text-text-muted bg-surface border border-dashed border-border rounded-lg px-3 py-2">
+      <div className="card card--flat card--pad t-small c-muted" style={{ borderStyle: 'dashed', marginBottom: 'var(--s-4)' }}>
         Speech-to-text needs Chrome — not supported in this browser. Tap a bucket manually below.
       </div>
     );
   }
 
+  const listening = speech.status === 'listening';
+
   return (
-    <div className="mb-4 rounded-lg border border-border bg-surface/60 px-3 py-3">
+    <div className={cn('machine', listening && 'machine--listening')} style={{ marginBottom: 'var(--s-4)' }}>
       {/*
-       * Round 16 (§9, reconciled): back to a compact, inline-left pill —
-       * round 15's full-width-above version was too large next to the two
-       * selects. The reconciliation is explicit that this is a
-       * non-negotiable requirement regardless of layout, not optional
-       * polish: an explicit min-width, since "auto-width, reflows based on
-       * neighboring content" is exactly how the original round 9 bug
-       * happened.
+       * Round 16 (§9, reconciled) / Round 31: restyled onto `.mic-btn`/
+       * `.select`. The manual-bucket dropdown's underlying mechanism
+       * (`onSimulateBucket` -> `speech.simulate()`, bypassing live
+       * classification entirely) and its disabled-while-listening gating are
+       * both unchanged — this is a real stage-reliability fallback, not the
+       * reference's own "click a bucket directly" affordance, so it keeps
+       * its select-dropdown shape rather than being reworked to match.
        */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="row gap-3" style={{ flexWrap: 'wrap' }}>
         <button
           type="button"
-          onClick={speech.status === 'listening' ? speech.stop : speech.start}
-          className={cn(
-            'min-w-[180px] h-10 shrink-0 flex items-center justify-center gap-1.5 px-4 rounded-full font-semibold text-xs text-white transition-colors whitespace-nowrap',
-            speech.status === 'listening' ? 'bg-danger hover:bg-danger-hover active:bg-danger-pressed' : 'bg-accent hover:bg-accent-hover active:bg-accent-pressed',
-          )}
+          onClick={listening ? speech.stop : speech.start}
+          className={cn('mic-btn', listening && 'mic-btn--stop')}
         >
-          <Mic size={14} />
-          {speech.status === 'listening' ? 'Stop listening' : 'Listen for applicant answer'}
+          {listening ? (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" /></svg>
+          ) : (
+            <Mic size={17} />
+          )}
+          {listening ? 'Stop listening' : 'Listen for applicant answer'}
         </button>
         <select
           value={langLabel}
-          disabled={speech.status === 'listening'}
+          disabled={listening}
           onChange={(e) => onLangChange(e.target.value)}
-          className="h-10 text-xs px-3 rounded-full border border-border bg-surface text-text-muted disabled:opacity-60"
+          className="select"
           title="Language the mic will listen in — set this to whatever you'll actually speak"
         >
           {SPEECH_LANGUAGES.map((l) => (
@@ -1236,33 +1184,25 @@ function SpeechCapture({
         </select>
         <select
           value=""
-          disabled={speech.status === 'listening'}
+          disabled={listening}
           onChange={(e) => {
             const tap = taps.find((t) => t.id === e.target.value);
             if (tap) onSimulateBucket(tap);
           }}
           title="Stage-reliability fallback — skips the live mic and network speech recognition entirely"
-          className="h-10 text-xs px-3 rounded-full border border-border bg-surface text-text-muted disabled:opacity-50"
+          className="select"
         >
-          {/*
-           * Round 16 (§9, reconciled): display label only. Internal
-           * naming (onSimulateBucket, handleSimulateBucket, simulatedTapId
-           * etc.) deliberately stays tied to what this control actually
-           * does — bypasses live classification and resolves straight to
-           * the picked bucket — rather than being renamed to match, so a
-           * future engineer reading the code isn't misled by copy aimed at
-           * the agent.
-           */}
           <option value="" disabled>Manually choose bucket ▾</option>
           {taps.map((tap) => (
             <option key={tap.id} value={tap.id}>{tap.labelHi ? `${tap.label} — ${tap.labelHi}` : tap.label}</option>
           ))}
         </select>
-        {speech.status === 'listening' && (
-          <span className="text-xs text-text-muted italic">Listening…</span>
+        {listening && (
+          <span className="wave" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /></span>
         )}
-        {speech.status === 'denied' && <span className="text-xs text-danger">Microphone access denied</span>}
-        {speech.status === 'error' && <span className="text-xs text-danger">Speech recognition error — try again</span>}
+        {listening && <span className="t-body-str" style={{ color: 'var(--da-fg)' }} role="status">Listening…</span>}
+        {speech.status === 'denied' && <span className="t-small" style={{ color: 'var(--da-fg)' }}>Microphone access denied</span>}
+        {speech.status === 'error' && <span className="t-small" style={{ color: 'var(--da-fg)' }}>Speech recognition error — try again</span>}
       </div>
       {/*
        * Round 17 (bug 2): during active listening, this was the only live
@@ -1274,20 +1214,35 @@ function SpeechCapture({
        * instant it's finalized) and the next phrase's interim result
        * hadn't arrived yet. Fix: show the accumulated final transcript
        * plus whatever's currently in progress, so the text only ever
-       * grows during a listening session, never blanks.
+       * grows during a listening session, never blanks. Round 31: restyled
+       * onto `.transcript`/`.transcript__committed`/`.transcript__interim`
+       * with a blinking caret while interim text is still coming in.
        */}
       {(speech.transcript || speech.interimTranscript) && (
-        <p className="text-sm mt-2">
-          <span className="text-text">{speech.transcript}</span>
+        <div className="transcript" style={{ marginTop: 'var(--s-3)' }} aria-live="polite">
+          <span className="transcript__committed">{speech.transcript}</span>
           {speech.interimTranscript && (
-            <span className="text-text-muted italic"> {speech.interimTranscript}</span>
+            <>
+              <span className="transcript__interim"> {speech.interimTranscript}</span>
+              <span className="transcript__caret" aria-hidden="true" />
+            </>
           )}
-        </p>
+        </div>
       )}
     </div>
   );
 }
 
+/**
+ * Round 36 — restyled onto `cf-design-system.css` (`.card`/`.chip`-family
+ * tokens), matching the rest of the Amber flow. Band tint reuses the exact
+ * `--ok-*`/`--wa-*`/`--da-*` tokens the queue table's and Risk Snapshot
+ * modal's chips already read, applied inline (the same pattern already used
+ * for this file's other tinted cards — e.g. the suggested-bucket card,
+ * `AbortAccordion`'s red-tinted panel) rather than adding new `.card--ok`/
+ * `.card--da` classes for a single call site. Copy, verdict/band logic,
+ * `victimFlag`, `hiddenReveal`, and the `isReview` branch are unchanged.
+ */
 function ResolutionCard({
   verdict,
   score,
@@ -1299,41 +1254,41 @@ function ResolutionCard({
 }) {
   const isReview = verdict.band === 'HUMAN_REVIEW';
   const band = verdict.band === 'HUMAN_REVIEW' ? 'SEPARATE REVIEW REQUIRED' : BAND_LABEL[verdict.band];
-  const bandColor =
+  const bandTint =
     verdict.band === 'PROCEED'
-      ? 'bg-success-subtle border-success-subtle text-success-strong'
+      ? { background: 'var(--ok-bg)', borderColor: 'var(--ok-br)', color: 'var(--ok-fg)' }
       : verdict.band === 'BLOCK'
-        ? 'bg-danger-subtle border-danger text-danger'
+        ? { background: 'var(--da-bg)', borderColor: 'var(--da-br)', color: 'var(--da-fg)' }
         : isReview
-          ? 'bg-bg border-border text-text-muted'
-          : 'bg-warning-subtle border-warning-border text-warning';
+          ? { background: 'var(--n-50)', borderColor: 'var(--n-200)', color: 'var(--n-600)' }
+          : { background: 'var(--wa-bg)', borderColor: 'var(--wa-br)', color: 'var(--wa-fg)' };
 
   return (
-    <div className="p-5 space-y-4 overflow-y-auto h-full">
-      <Card padding>
-        <div className={cn('rounded-lg border px-4 py-3 mb-4', bandColor)}>
-          <p className="text-xs uppercase tracking-wide opacity-80 mb-1">Resolved</p>
-          <p className="text-2xl font-semibold">{band}</p>
-          {score !== null && <p className="text-xs opacity-70 mt-1">Composite score: {score.toFixed(2)}</p>}
+    <div className="flex flex-col h-full min-h-0" style={{ padding: 'var(--s-4)', overflowY: 'auto' }}>
+      <section className="card card--pad">
+        <div className="card card--pad" style={{ ...bandTint, marginBottom: 'var(--s-4)' }}>
+          <p className="t-eyebrow" style={{ opacity: 0.8, marginBottom: 'var(--s-1)' }}>Resolved</p>
+          <p className="t-h1">{band}</p>
+          {score !== null && <p className="t-small" style={{ opacity: 0.7, marginTop: 'var(--s-1)' }}>Composite score: {score.toFixed(2)}</p>}
         </div>
 
-        <p className="text-xs uppercase tracking-wide text-text-muted mb-2">Reasons</p>
-        <ul className="list-disc list-inside space-y-1 text-sm mb-4">
+        <p className="t-eyebrow c-muted" style={{ marginBottom: 'var(--s-2)' }}>Reasons</p>
+        <ul className="t-small" style={{ listStyleType: 'disc', listStylePosition: 'inside', margin: 0, marginBottom: 'var(--s-4)' }}>
           {verdict.reasons.map((r, i) => (
-            <li key={i}>{r}</li>
+            <li key={i} style={{ marginBottom: i < verdict.reasons.length - 1 ? 'var(--s-1)' : 0 }}>{r}</li>
           ))}
         </ul>
 
         {verdict.victimFlag && (
-          <div className="rounded-lg border border-accent bg-accent-subtle text-accent px-4 py-3 text-sm mb-4">
+          <div className="card card--pad t-small" style={{ background: 'var(--cf-brand-050)', borderColor: 'var(--cf-brand-100)', color: 'var(--cf-brand-deep)', marginBottom: 'var(--s-4)' }}>
             {verdict.victimFlag}
           </div>
         )}
 
         {isReview && (
-          <div className="rounded-lg border border-border bg-surface/60 px-4 py-3 text-sm mb-4">
-            <p className="font-medium mb-1">This case exits the call unresolved — no negative score, but not no scrutiny.</p>
-            <p className="text-text-muted">
+          <div className="card card--pad card--flat t-small" style={{ marginBottom: 'var(--s-4)' }}>
+            <p className="t-body-str" style={{ marginBottom: 'var(--s-1)' }}>This case exits the call unresolved — no negative score, but not no scrutiny.</p>
+            <p className="c-muted">
               Escalated for separate review (rigorous EDD or further documents). That review must be at least as
               rigorous as the automated path here, or "I don't understand" becomes the cheapest way through.
             </p>
@@ -1341,20 +1296,20 @@ function ResolutionCard({
         )}
 
         {verdict.hiddenReveal && verdict.hiddenReveal.length > 0 && (
-          <div className="rounded-lg border border-border bg-surface/60 px-4 py-3 text-sm">
-            <p className="text-xs uppercase tracking-wide text-text-muted mb-1">Hidden signal (revealed now)</p>
+          <div className="card card--pad card--flat t-small">
+            <p className="t-eyebrow c-muted" style={{ marginBottom: 'var(--s-1)' }}>Hidden signal (revealed now)</p>
             {verdict.hiddenReveal.map((line, i) => (
               <p key={i}>{line}</p>
             ))}
           </div>
         )}
 
-        <div className="mt-4 pt-4 border-t border-border/60">
-          <Button onClick={onContinue}>
+        <div style={{ marginTop: 'var(--s-4)', paddingTop: 'var(--s-4)', borderTop: '1px solid var(--n-100)' }}>
+          <button type="button" className="btn btn--primary btn--lg btn--sheen" onClick={onContinue}>
             End Session
-          </Button>
+          </button>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }

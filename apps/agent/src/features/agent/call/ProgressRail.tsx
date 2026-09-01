@@ -79,17 +79,30 @@ export function ProgressRail({ stepStatuses, currentStage }: ProgressRailProps) 
           <div className="flex-1 h-0.5 bg-success mx-2 mb-[18px]" aria-hidden />
         </div>
       ))}
-      <div
-        className={cn(
-          'flex items-center gap-1.5 px-3 py-1.5 rounded-full shrink-0 text-xs',
-          amberStatus === 'active' ? 'bg-primary-soft text-primary font-medium' : 'text-text-muted',
-        )}
-      >
-        {amberStatus === 'complete' && <Check size={14} className="text-success shrink-0" />}
-        {amberStatus === 'active' && <Circle size={14} className="text-primary fill-primary/20 shrink-0" />}
-        {amberStatus === 'pending' && <Circle size={14} className="text-text-disabled shrink-0" />}
-        <Search size={14} className="opacity-70 shrink-0" />
-        Amber Resolution
+      {/*
+       * Round 37 (Item 3) — brought onto the same icon-above-label stacked
+       * shape as the six steps above (matching `StepStatusIcon`'s own
+       * size/coloring for the top icon, and the same `text-[11px]` label row
+       * with an opacity-70 lead icon) so this reads as a consistent seventh
+       * item in the row rather than a differently-aligned element tacked on
+       * the end. The rounded-pill background is kept, but scoped to just the
+       * label chip — still the visual cue that this is the live/active
+       * stage rather than a pre-completed KYC check, without breaking the
+       * row's shared vertical rhythm.
+       */}
+      <div className="flex flex-col items-center gap-1 shrink-0">
+        {amberStatus === 'complete' && <Check size={14} className="text-success shrink-0 relative z-10 bg-surface rounded-full" />}
+        {amberStatus === 'active' && <Circle size={14} className="text-primary fill-primary/20 shrink-0 relative z-10 bg-surface rounded-full" />}
+        {amberStatus === 'pending' && <Circle size={14} className="text-text-disabled shrink-0 relative z-10 bg-surface rounded-full" />}
+        <span
+          className={cn(
+            'flex items-center gap-1 text-[11px] font-medium whitespace-nowrap rounded-full px-2 py-0.5',
+            amberStatus === 'active' ? 'bg-primary-soft text-primary' : 'text-text-muted',
+          )}
+        >
+          <span className="opacity-70"><Search size={14} /></span>
+          Amber Resolution
+        </span>
       </div>
     </nav>
   );

@@ -113,19 +113,57 @@ export default {
           DEFAULT: '#094eff', // --sds-focus-infocus-default
           error: '#b80000', // --sds-focus-infocus-error — for invalid/error inputs
         },
+        /*
+         * Round 30 UI redesign — the Cashfree 2026 "liquid glass" (Thunderclap) token
+         * layer, read from the CSS custom properties in src/styles/cf-design-system.css
+         * (one source of truth, per that file's own §5.3 instruction) rather than
+         * duplicated as literal hex here. Purely additive: none of the keys above
+         * (primary/bg/surface/success/danger/warning/border/accent/focus) are touched,
+         * so every screen not yet ported to the new design stays exactly as it was.
+         * `brand` intentionally does not collide with the existing `brand: { 950: ... }`
+         * key above (a legacy near-black token that predates this round, still read by
+         * whatever used `bg-brand-950` before) — Tailwind merges object keys, so
+         * `brand-950` and the new `brand`/`brand-hover`/etc. below coexist.
+         */
+        brand: {
+          DEFAULT: 'var(--cf-brand)',
+          hover: 'var(--cf-brand-hover)',
+          press: 'var(--cf-brand-press)',
+          deep: 'var(--cf-brand-deep)',
+          soft: 'var(--cf-brand-soft)',
+          50: 'var(--cf-brand-050)',
+          100: 'var(--cf-brand-100)',
+        },
+        ok: 'var(--ok-fg)',
+        wa: 'var(--wa-fg)',
+        da: 'var(--da-fg)',
+        re: 'var(--re-fg)',
       },
       fontFamily: {
-        sans: ['"DM Sans"', 'system-ui', 'sans-serif'], // --sds-family-web-font
+        /*
+         * Round 30: extended to include Noto Sans Devanagari in the fallback chain —
+         * DM Sans has no Devanagari coverage, and the farmer tree renders every
+         * question/tap bilingually (English + Hindi, always both visible, since round
+         * 26 — see AmberPanel.tsx's QuestionText/TapLabel). Without this fallback the
+         * Hindi line silently used whatever the OS supplied instead of matching the
+         * English line's face. Matches src/styles/cf-design-system.css's --f-sans stack
+         * exactly, so both sources of truth agree.
+         */
+        sans: ['"DM Sans"', '"Noto Sans Devanagari"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        mono: ['"DM Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       spacing: {
         /*
-         * Width of the cashmere LeftNavbar in this app. cashmere's own root is
-         * `width: min(100%, 22.375rem)` — up to 358px, far more than a four-item nav
-         * needs — so AgentSidebar pins it with `!w-sidebar`. Anything that has to line up
-         * with the content column beside it (the fixed incoming-call overlay) uses the
-         * same token, so the width lives in exactly one place.
+         * Round 30: 240px, matching `.shell`'s own `grid-template-columns`
+         * (cf-design-system.css §9 — `calc(240px * var(--ui-scale))`, and
+         * `--ui-scale` defaults to 1, nothing wires it to a real control yet).
+         * Was 256px (cashmere LeftNavbar's pinned width) before this round's
+         * sidebar rebuild. The only other consumer of this token is the fixed
+         * incoming-call overlay's `left-sidebar` offset — it has to match the
+         * sidebar's real width or the card drifts under/past it, so the width
+         * lives in exactly one place rather than being duplicated.
          */
-        sidebar: '16rem', // 256px
+        sidebar: '15rem', // 240px
       },
       boxShadow: {
         card: '0 1px 3px 0 rgba(21, 21, 21, 0.08), 0 1px 2px 0 rgba(21, 21, 21, 0.04)', // --sds-shadow-base

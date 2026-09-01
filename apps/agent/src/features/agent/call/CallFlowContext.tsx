@@ -622,11 +622,24 @@ export function CallFlowProvider({
     submitDecision(mappedDecision);
   }, [amberVerdict, submitDecision]);
 
+  /**
+   * Round 36 — the "Amber Resolution" progress-rail pill was reading
+   * `amberResolved` (only set true when the agent clicks "End Session" on
+   * `ResolutionCard`, at which point `submitDecision` also moves the whole
+   * screen to Case Summary and the rail unmounts anyway) instead of
+   * `amberVerdict` (set the moment a verdict is actually recorded, which is
+   * the same instant `AmberPanel` starts rendering `ResolutionCard`). The
+   * pill therefore never had a real chance to render green — fixed by
+   * keying "done" off `amberVerdict !== null`. `amberResolved` itself is
+   * untouched and still gates `StepWorkspace`'s render switch exactly as
+   * before (see `recordAmberVerdict`'s own comment above for why those two
+   * have to stay separate).
+   */
   const currentStage = useMemo((): 'pre' | 'resolve_signal' | 'done' => {
     if (!started) return 'pre';
-    if (isAmberCase && !amberResolved) return 'resolve_signal';
+    if (isAmberCase && !amberVerdict) return 'resolve_signal';
     return 'done';
-  }, [started, isAmberCase, amberResolved]);
+  }, [started, isAmberCase, amberVerdict]);
 
   /**
    * Rounds 6-8: the applicant completes the entire VKYC sequence, including

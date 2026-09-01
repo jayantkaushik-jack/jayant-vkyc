@@ -1,14 +1,9 @@
 import { useState } from 'react';
-import { Camera, Volume2 } from 'lucide-react';
-import { Button } from '@agent/components/ui/Button';
-import { Card } from '@agent/components/ui/Card';
-import { DetailRow } from '@agent/features/agent/call/StepWorkspace';
+import { DimensionList, RiskSnapshotModal } from '@agent/components/risk/RiskSnapshotModal';
 import type { Customer } from '@vkyc/shared/data/types';
 import type { PreCheckState } from '@agent/features/agent/call/CallFlowContext';
-import { cn } from '@vkyc/shared/lib/cn';
 import { getInitials } from '@vkyc/shared/lib/avatar';
-import type { AmberPersona } from '@agent/features/agent/call/amber/personas';
-import { DimensionList } from '@agent/components/risk/RiskSnapshotModal';
+import type { AmberPersona, Dimension, RiskDimensions } from '@agent/features/agent/call/amber/personas';
 
 interface CustomerDetailsStepProps {
   customer: Customer;
@@ -38,11 +33,27 @@ function maskAddressLine(addr: { city: string; state: string; pincode: string })
   return `House No. XX, Sample Road, ${addr.city}, ${addr.state} - ${addr.pincode}`;
 }
 
+const CHEVRON = (
+  <svg className="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
+/**
+ * Round 31 — restyled onto `.card`/`.check-row`/`.seg`/`.sig`/`.group`/`.kv`
+ * (design system §"pre-call dossier", reference screen 07). The two-column
+ * call-room geometry (video rail + this work panel) is owned by
+ * `CallRoomPage.tsx`/`VideoPanel.tsx`, both out of this round's scope — only
+ * this step's own content is restyled here. `.actionbar` replaces the old
+ * inline Proceed button so the primary action never scrolls below the fold,
+ * per the design system's own rationale for that component.
+ */
 export function CustomerDetailsStep({ customer, persona, onProceed }: CustomerDetailsStepProps) {
   const [checks, setChecks] = useState<Record<CheckKey, CheckValue>>({
     videoVisible: null,
     audible: null,
   });
+  const [snapshotOpen, setSnapshotOpen] = useState(false);
 
   const setCheck = (key: CheckKey, value: 'yes' | 'no') => {
     setChecks((prev) => ({ ...prev, [key]: value }));
@@ -50,148 +61,168 @@ export function CustomerDetailsStep({ customer, persona, onProceed }: CustomerDe
 
   const allYes = checks.videoVisible === 'yes' && checks.audible === 'yes';
   const hasNo = checks.videoVisible === 'no' || checks.audible === 'no';
+  const doneCount = (checks.videoVisible !== null ? 1 : 0) + (checks.audible !== null ? 1 : 0);
+  const checkChipText = allYes ? 'Ready' : `${2 - doneCount} to confirm`;
+  const checkChipClass = allYes ? 'chip--ok' : hasNo ? 'chip--da' : 'chip--brand';
+
+  const dimEntries = Object.entries(persona.riskSnapshot.dimensions) as [keyof RiskDimensions, Dimension][];
+  const flagged = dimEntries.filter(([, d]) => d.level === 'MEDIUM' || d.level === 'HIGH');
+  const clear = dimEntries.filter(([, d]) => d.level === 'LOW' || d.level === 'NOT_AVAILABLE');
+  const sigDotClass = flagged.some(([, d]) => d.level === 'HIGH') ? 'dim-dot--high' : flagged.length > 0 ? 'dim-dot--med' : 'dim-dot--low';
 
   return (
-    <div className="p-5 space-y-5 overflow-y-auto">
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-bg text-text border border-border">
-          Onboarding Channel: {persona.onboardingChannel}
-        </span>
-      </div>
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex-1 overflow-y-auto p-5" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-4)' }}>
 
-      <DimensionList dimensions={persona.riskSnapshot.dimensions} />
-
-      <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-accent-subtle text-accent">
-        Language selected by customer: {customer.language}
-      </span>
-
-      <div className="grid sm:grid-cols-2 gap-4">
-        {([
-          ['videoVisible', 'Video Visible', Camera, 'accent'],
-          ['audible', 'Audible', Volume2, 'success'],
-        ] as const).map(([key, label, Icon, hue]) => {
-          const solid = hue === 'accent' ? 'bg-accent' : 'bg-success';
-          // `!` beats Card's own bg-surface — cn() here is plain concatenation, not tailwind-merge, so two same-property classes would otherwise depend on unpredictable stylesheet source order.
-          const subtleBg = hue === 'accent' ? '!bg-accent-subtle' : '!bg-success-subtle';
-          const text = hue === 'accent' ? 'text-accent' : 'text-success-strong';
-          const border = hue === 'accent' ? 'border-accent' : 'border-success';
-          const hoverBorder = hue === 'accent' ? 'hover:border-accent/40' : 'hover:border-success/40';
-          return (
-            <Card key={key} padding className={cn('space-y-3', subtleBg)}>
-              <div className="flex items-center gap-2">
-                <span className={cn('inline-flex items-center justify-center w-7 h-7 rounded-full text-white shrink-0', solid)}>
-                  <Icon size={14} />
-                </span>
-                <p className="text-sm font-medium">{label}</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCheck(key, 'yes')}
-                  className={cn(
-                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-colors',
-                    checks[key] === 'yes' ? cn(solid, 'text-white', border) : cn('bg-surface border-border', hoverBorder),
-                  )}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCheck(key, 'no')}
-                  className={cn(
-                    'flex-1 py-2 rounded-lg text-sm font-medium border bg-surface transition-colors',
-                    checks[key] === 'no' ? cn(border, text) : cn('border-border', hoverBorder),
-                  )}
-                >
-                  No
-                </button>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {hasNo && (
-        <p className="text-sm text-warning bg-warning-subtle border border-warning-border rounded-lg px-3 py-2">
-          Ask the customer to adjust camera/audio, or report an issue.
-        </p>
-      )}
-
-      <Card>
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
-          <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-accent text-white text-xs font-semibold shrink-0">
-            {getInitials(customer.name)}
-          </span>
-          <div>
-            <p className="font-semibold text-sm">{customer.name}</p>
-            <p className="text-xs text-text-muted">{customer.customerStatus} applicant · {customer.productType}</p>
+        <section className="card card--pad" aria-labelledby="checkHead">
+          <div className="row gap-2" style={{ marginBottom: 'var(--s-1)' }}>
+            <h2 className="t-h2" id="checkHead">Before you start</h2>
+            <span className={`chip ${checkChipClass}`}>{checkChipText}</span>
           </div>
-        </div>
+          <p className="t-small c-muted" style={{ marginBottom: 'var(--s-2)' }}>
+            Confirm the connection is good enough to run KYC. Both must be yes.
+          </p>
 
-        <DetailSection label="Identity" dotClass="bg-accent" labelClass="text-accent">
-          <DetailRow label="Gender" value={customer.gender} />
-          <DetailRow label="DOB" value={customer.dob} />
-          <DetailRow label="Father's Name" value={customer.fatherName} />
-          <DetailRow label="Mobile No." value={maskPhone(customer.phone)} />
-        </DetailSection>
+          <div className="check-row">
+            <div className="grow">
+              <div className="t-body-str">Can you see the applicant clearly?</div>
+              <div className="t-small c-muted">Face fully in frame, adequate light</div>
+            </div>
+            <div className="seg" role="group" aria-label="Video visible">
+              <button type="button" className="seg__btn" data-val="yes" aria-pressed={checks.videoVisible === 'yes'} onClick={() => setCheck('videoVisible', 'yes')}>Yes</button>
+              <button type="button" className="seg__btn" data-val="no" aria-pressed={checks.videoVisible === 'no'} onClick={() => setCheck('videoVisible', 'no')}>No</button>
+            </div>
+          </div>
 
-        <DetailSection label="Contact & Address" dotClass="bg-success" labelClass="text-success-strong">
-          <DetailRow label="Email ID" value={MASKED_EMAIL} />
-          <DetailRow label="Current Add." value={maskAddressLine(customer.currentAddress)} />
-          <DetailRow label="Permanent Add." value={maskAddressLine(customer.permanentAddress)} />
-        </DetailSection>
+          <div className="check-row">
+            <div className="grow">
+              <div className="t-body-str">Can you hear the applicant clearly?</div>
+              <div className="t-small c-muted">Needed for the spoken answers later</div>
+            </div>
+            <div className="seg" role="group" aria-label="Audio clear">
+              <button type="button" className="seg__btn" data-val="yes" aria-pressed={checks.audible === 'yes'} onClick={() => setCheck('audible', 'yes')}>Yes</button>
+              <button type="button" className="seg__btn" data-val="no" aria-pressed={checks.audible === 'no'} onClick={() => setCheck('audible', 'no')}>No</button>
+            </div>
+          </div>
 
-        <DetailSection label="Account" dotClass="bg-warning" labelClass="text-warning-text" last>
-          <DetailRow label="Product Type" value={customer.productType} />
-          <DetailRow label="Onboarding Channel" value={persona.onboardingChannel} />
-          {persona.onboardingChannel === 'Assisted — BC Agent' && persona.bcSourcingCode && (
-            <DetailRow label="BC Sourcing Code" value={persona.bcSourcingCode} />
+          {hasNo && (
+            <div className="card card--warn card--pad" style={{ marginTop: 'var(--s-3)', padding: 'var(--s-3) var(--s-4)' }}>
+              <p className="t-small">
+                <span className="t-body-str">Ask the applicant to move to better light or reconnect.</span>{' '}
+                If it still fails, end the session and report the issue so the case routes to review with no penalty to the applicant.
+              </p>
+            </div>
           )}
-          <DetailRow label="Customer Status" value={customer.customerStatus} />
-        </DetailSection>
+        </section>
 
-        <p className="text-[11px] text-text-muted mt-3 pt-2 border-t border-border/60">
+        <section className="card card--pad" aria-labelledby="sigHead">
+          <div className="row gap-2" style={{ marginBottom: 'var(--s-3)' }}>
+            <span className={`dim-dot ${sigDotClass}`} aria-hidden="true" />
+            <h2 className="t-body-str" id="sigHead">{flagged.length} signal{flagged.length === 1 ? '' : 's'} to resolve</h2>
+            <button type="button" className="link-btn t-small" style={{ marginLeft: 'auto', fontWeight: 500 }} onClick={() => setSnapshotOpen(true)}>
+              Full risk snapshot
+            </button>
+          </div>
+
+          {flagged.length > 0 && <DimensionList dimensions={Object.fromEntries(flagged)} />}
+
+          {clear.length > 0 && (
+            <details className="disclosure" style={{ marginTop: 'var(--s-3)' }}>
+              <summary>
+                {CHEVRON}
+                <span className="dim-dot dim-dot--low" aria-hidden="true" />
+                {clear.length} signal{clear.length === 1 ? '' : 's'} clear
+              </summary>
+              <div className="disclosure__body">
+                <DimensionList dimensions={Object.fromEntries(clear)} />
+              </div>
+            </details>
+          )}
+        </section>
+
+        <section className="card card--pad" aria-labelledby="dossierHead">
+          <div className="row gap-3" style={{ marginBottom: 'var(--s-3)', paddingBottom: 'var(--s-3)', borderBottom: '1px solid var(--n-100)' }}>
+            <span className="avatar avatar--md" aria-hidden="true">{getInitials(customer.name)}</span>
+            <div className="grow">
+              <p className="t-body-str" id="dossierHead">{customer.name}</p>
+              <p className="t-small c-muted">{customer.customerStatus} applicant &middot; {customer.productType}</p>
+            </div>
+            <span className="chip chip--neutral">Language: {customer.language}</span>
+          </div>
+
+          <details className="group" open>
+            <summary>
+              {CHEVRON}
+              <span className="group__dot" style={{ background: 'var(--cf-brand)' }} aria-hidden="true" />
+              Identity
+            </summary>
+            <div style={{ paddingBottom: 'var(--s-2)' }}>
+              <div className="kv"><span className="kv__k">Gender</span><span className="kv__v">{customer.gender}</span></div>
+              <div className="kv"><span className="kv__k">Date of birth</span><span className="kv__v t-mono">{customer.dob}</span></div>
+              <div className="kv"><span className="kv__k">Father&rsquo;s name</span><span className="kv__v">{customer.fatherName}</span></div>
+              <div className="kv"><span className="kv__k">Mobile</span><span className="kv__v t-mono">{maskPhone(customer.phone)}</span></div>
+            </div>
+          </details>
+
+          <details className="group">
+            <summary>
+              {CHEVRON}
+              <span className="group__dot" style={{ background: 'var(--cf-gold)' }} aria-hidden="true" />
+              Contact &amp; address
+            </summary>
+            <div style={{ paddingBottom: 'var(--s-2)' }}>
+              <div className="kv"><span className="kv__k">Email</span><span className="kv__v">{MASKED_EMAIL}</span></div>
+              <div className="kv"><span className="kv__k">Current address</span><span className="kv__v">{maskAddressLine(customer.currentAddress)}</span></div>
+              <div className="kv"><span className="kv__k">Permanent address</span><span className="kv__v">{maskAddressLine(customer.permanentAddress)}</span></div>
+            </div>
+          </details>
+
+          <details className="group">
+            <summary>
+              {CHEVRON}
+              <span className="group__dot" style={{ background: 'var(--n-400)' }} aria-hidden="true" />
+              Account
+            </summary>
+            <div style={{ paddingBottom: 'var(--s-2)' }}>
+              <div className="kv"><span className="kv__k">Product type</span><span className="kv__v t-mono">{customer.productType}</span></div>
+              <div className="kv"><span className="kv__k">Onboarding channel</span><span className="kv__v">{persona.onboardingChannel}</span></div>
+              {persona.onboardingChannel === 'Assisted — BC Agent' && persona.bcSourcingCode && (
+                <div className="kv"><span className="kv__k">BC sourcing code</span><span className="kv__v t-mono">{persona.bcSourcingCode}</span></div>
+              )}
+              <div className="kv"><span className="kv__k">Customer status</span><span className="kv__v">{customer.customerStatus}</span></div>
+            </div>
+          </details>
+        </section>
+
+      </div>
+
+      <div className="actionbar">
+        <span className="t-small c-faint grow">
           Illustrative data only — no real customer information is used in this demo.
-        </p>
-      </Card>
+        </span>
+        <span className="t-small c-muted">
+          {allYes ? '' : hasNo ? 'Resolve the connection before continuing' : 'Confirm both checks to continue'}
+        </span>
+        <button
+          type="button"
+          className="btn btn--primary btn--lg btn--sheen"
+          disabled={!allYes}
+          onClick={() => onProceed({ videoVisible: true, audible: true })}
+        >
+          Start KYC steps
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
+      </div>
 
-      <Button
-        disabled={!allYes}
-        onClick={() => onProceed({ videoVisible: true, audible: true })}
-        className="disabled:!bg-primary disabled:!text-white disabled:!opacity-100"
-      >
-        Proceed
-      </Button>
-    </div>
-  );
-}
-
-/**
- * Round 15 (§5): labeled sections with a divider, instead of one flat
- * two-column grid. Round 16 (§9): each section's label gets its own colored
- * dot + colored uppercase text instead of uniform gray, to break up the
- * monochrome look.
- */
-function DetailSection({
-  label,
-  dotClass,
-  labelClass,
-  last,
-  children,
-}: {
-  label: string;
-  dotClass: string;
-  labelClass: string;
-  last?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={cn('mb-4 pb-4', !last && 'border-b border-border/60')}>
-      <p className={cn('flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide mb-1', labelClass)}>
-        <span className={cn('w-1.5 h-1.5 rounded-full', dotClass)} />
-        {label}
-      </p>
-      {children}
+      <RiskSnapshotModal
+        open={snapshotOpen}
+        onClose={() => setSnapshotOpen(false)}
+        name={customer.name}
+        subtitle={`${persona.onboardingChannel} — ${customer.currentAddress.city}, ${customer.currentAddress.state}`}
+        riskSnapshot={persona.riskSnapshot}
+      />
     </div>
   );
 }

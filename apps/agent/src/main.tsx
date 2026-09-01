@@ -7,6 +7,7 @@ import { SessionStatusProvider } from '@vkyc/shared/features/session/SessionStat
 import { AgentProvider } from '@agent/features/agent/AgentContext';
 import { AppRoutes } from '@agent/app/routes';
 import './index.css';
+import './styles/cf-design-system.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

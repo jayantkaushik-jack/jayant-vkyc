@@ -1,49 +1,65 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Icon, LeftNavbar, Logo } from '@cashfree-intl/cashmere';
-import type { LeftNavbarNavSection } from '@cashfree-intl/cashmere';
 
 /**
- * The agent sidebar on cashmere's LeftNavbar.
+ * Round 30 — rebuilt on the new `.sidebar`/`.nav-item` design-system classes
+ * (src/styles/cf-design-system.css §9) instead of cashmere's `LeftNavbar`.
+ * Not a restyle-in-place: the reference shell's exact grid/scroll structure
+ * (`.shell { height:100vh; overflow:hidden }`, sidebar as a direct grid
+ * column) doesn't map cleanly onto `LeftNavbar`'s own width/layout API, and
+ * `@cashfree-intl/cashmere` is aliased to a local stub in this app anyway
+ * (vite.config.ts — no real registry credentials exist here), so there's no
+ * real design-system dependency being dropped, just this app's own
+ * placeholder for one. `Icon`/`Button`/`Tag`/etc. from that stub are still
+ * used elsewhere and untouched.
  *
- * This is the largest visual change in the app: cashmere's sidebar is *dark* — its inner
- * panel is `--sds-neutral-bg-inverse-inverse` with inverse text — where this was a light
- * panel with a purple active pill. It also owns its own padding (32px horizontal on every
- * slot) and its own active treatment (`bg-inverse-active` plus bold), so none of the old
- * per-item classes survive.
- *
- * Three things the API forces:
- *
- * 1. **Active state must be passed in.** `LeftNavbar.Nav` resolves the current item from
- *    `window.location`, read *once on mount* — fine for a server-rendered Pulse page, wrong
- *    for a SPA, where the sidebar never remounts as you navigate. Per-item `current`
- *    overrides that, so it's computed from `useLocation()` on every render.
- *
- * 2. **Navigation must be intercepted.** Items are real `<a href>` elements, and a full
- *    page load would drop the in-memory auth session and bounce to /login. `onClick` is
- *    passed through to the anchor, so each item preventDefaults and calls `navigate()`.
- *    Cmd/ctrl/middle-click fall through untouched so "open in new tab" still works.
- *
- * 3. **Width.** The root is `width: min(100%, 22.375rem)` — up to 358px, which is far wider
- *    than this app's four-item nav needs. `!w-sidebar` (256px) pins it; the `!` is there
- *    because cashmere's own width declaration has the same specificity as a plain utility.
- *    That token is shared with the incoming-call overlay, which has to align to the content
- *    column beside this.
- *
- * The logo moved here from the header: with a full-height sidebar the brand belongs in its
- * header slot, and `type="light"` is required because Logo renders an `<img>` rather than an
- * inline SVG, so it escapes the inner panel's currentColor recolouring.
+ * All the real logic — active-route detection recomputed from `useLocation`
+ * on every render (not resolved once from `window.location`), in-SPA
+ * navigation interception with modifier-click passthrough, and the call-room
+ * full-bleed collapse — is unchanged from the previous version, just no
+ * longer expressed through `LeftNavbar`'s section/item data shape.
  */
 
-/** Route → cashmere icon. All four exist natively, so no lucide fallback is needed here. */
 const NAV_ITEMS = [
-  { to: '/agent', label: 'Home', icon: 'home' },
-  { to: '/agent/profile', label: 'Profile', icon: 'user' },
-  { to: '/agent/performance', label: 'Analytics', icon: 'bargraph' },
-  { to: '/agent/knowledge', label: 'Knowledge Center', icon: 'bookopentext' },
+  {
+    to: '/agent',
+    label: 'Home',
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.6V21h14V9.6" />
+      </svg>
+    ),
+  },
+  {
+    to: '/agent/profile',
+    label: 'Profile',
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.6" /><path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+      </svg>
+    ),
+  },
+  {
+    to: '/agent/performance',
+    label: 'Analytics',
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M5 20V11" /><path d="M12 20V5" /><path d="M19 20v-6" />
+      </svg>
+    ),
+  },
+  {
+    to: '/agent/knowledge',
+    label: 'Knowledge Center',
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" /><path d="M9 3v14" />
+      </svg>
+    ),
+  },
 ] as const;
 
-/** Matches the call room, which is full-bleed and hides the sidebar entirely. */
-const CALL_ROOM = /^\/agent\/call\//;
+/** Matches the call room, which is full-bleed and hides the sidebar entirely. Exported so `AgentLayout` can check the exact same condition when deciding whether `.shell` still needs to reserve a sidebar column. */
+export const CALL_ROOM = /^\/agent\/call\//;
 
 /**
  * `/agent` is the index route, so it only counts as active on an exact match — otherwise
@@ -64,30 +80,37 @@ export function AgentSidebar() {
 
   if (CALL_ROOM.test(location.pathname)) return null;
 
-  const sections: LeftNavbarNavSection[] = [
-    {
-      id: 'main',
-      items: NAV_ITEMS.map(({ to, label, icon }) => ({
-        type: 'link' as const,
-        id: to,
-        label,
-        href: to,
-        current: isActive(location.pathname, to),
-        // `lg` is cashmere's NAV_LEADING_ICON_SIZE — 20px.
-        icon: <Icon name={icon} size="lg" />,
-        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
-          if (isModifiedClick(e)) return;
-          e.preventDefault();
-          navigate(to);
-        },
-      })),
-    },
-  ];
-
   return (
-    <LeftNavbar className="!w-sidebar shrink-0">
-      <LeftNavbar.Header icon={<Logo type="light" />} />
-      <LeftNavbar.Nav sections={sections} />
-    </LeftNavbar>
+    <nav className="sidebar" aria-label="Main">
+      <div className="sidebar__brand">
+        <img className="brand-logo brand-logo--sm" src="/assets/cashfree-secure-id-white.png" alt="Cashfree Secure ID" />
+        <span className="sidebar__product">Mule Sentinel</span>
+      </div>
+
+      {NAV_ITEMS.map(({ to, label, icon }) => {
+        const active = isActive(location.pathname, to);
+        return (
+          <a
+            key={to}
+            className={active ? 'nav-item is-active' : 'nav-item'}
+            href={to}
+            aria-current={active ? 'page' : undefined}
+            onClick={(e) => {
+              if (isModifiedClick(e)) return;
+              e.preventDefault();
+              navigate(to);
+            }}
+          >
+            {icon}
+            {label}
+          </a>
+        );
+      })}
+
+      <div className="sidebar__foot">
+        <p className="t-mono" style={{ color: 'var(--n-400)', fontSize: 10, letterSpacing: '.07em' }}>DEMO BUILD &middot; v0.30</p>
+        <p className="t-mono" style={{ color: 'var(--n-500)', fontSize: 10, letterSpacing: '.07em', marginTop: 2 }}>SYNTHETIC DATA ONLY</p>
+      </div>
+    </nav>
   );
 }

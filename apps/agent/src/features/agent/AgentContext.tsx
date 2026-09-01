@@ -64,6 +64,17 @@ interface AgentContextValue {
   setDemoPersonaId: (id: AmberPersona['id']) => void;
   /** Queue table row click (round 3, item A3) — loads that persona into the Accept/Reject card immediately. */
   selectQueuedPersona: (id: AmberPersona['id']) => void;
+  /**
+   * Round 37 (Bug 2) — true while *any* `RiskSnapshotModal` instance is open
+   * anywhere in the app, regardless of which of its three call sites opened
+   * it. `IncomingCallOverlay` reads this to hide its own floating card while
+   * it's true, so a bright `position: fixed` card never sits — and ghosts
+   * through — behind a modal's translucent scrim. Not scoped to "this
+   * card's own modal": the overlay floats globally now (Bug 1's fix), so
+   * the Queue page's own row-click modal needs the same coordination.
+   */
+  isRiskSnapshotOpen: boolean;
+  setRiskSnapshotOpen: (open: boolean) => void;
 }
 
 const AgentContext = createContext<AgentContextValue | null>(null);
@@ -83,7 +94,12 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [callSession, setCallSession] = useState<CallSession | null>(null);
   const [incomingSince, setIncomingSince] = useState<number | null>(null);
-  const [demoPersonaId, setDemoPersonaId] = useState<AmberPersona['id']>('ramesh');
+  // 'rameshyadav', not 'ramesh': QueuePage currently hides ramesh/suresh/lakshmi/meena from the
+  // queue UI (a temporary, UI-only filter — see QueuePage.tsx's own HIDDEN_QUEUE_PERSONA_IDS
+  // comment), so the very first automatic incoming call — before any queue row is clicked — must
+  // not default to one of those, or a "hidden" persona would still ring in as a real call.
+  const [demoPersonaId, setDemoPersonaId] = useState<AmberPersona['id']>('rameshyadav');
+  const [isRiskSnapshotOpen, setRiskSnapshotOpen] = useState(false);
   const callSchedulerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { stream: cameraStream, status: cameraStatus, start: startCamera, stop: stopCamera } = useCamera();
 
@@ -187,6 +203,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         demoPersonaId,
         setDemoPersonaId,
         selectQueuedPersona,
+        isRiskSnapshotOpen,
+        setRiskSnapshotOpen,
       }}
     >
       {children}
